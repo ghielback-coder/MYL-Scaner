@@ -328,4 +328,54 @@ class MainActivity : AppCompatActivity() {
             val file = File(getExternalFilesDir(null), fileName)
             val writer = FileWriter(file)
             
-            writer.append("Cantidad,Codigo,Nombre
+            writer.append("Cantidad,Codigo,Nombre,Edicion\n")
+            
+            val conteo = scannedCards.groupingBy { it }.eachCount()
+            conteo.entries.sortedBy { it.key.codigo }.forEach { (carta, cantidad) ->
+                writer.append("$cantidad,${carta.codigo},${carta.nombre},${carta.edicion}\n")
+            }
+            
+            writer.flush()
+            writer.close()
+            
+            val uri: Uri = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+            
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Mi lista MyL")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            startActivity(Intent.createChooser(intent, "Compartir lista"))
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.e("Export", "Error exportando", e)
+        }
+    }
+
+    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (allPermissionsGranted()) startCamera()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+        toneGen.release()
+    }
+
+    companion object {
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+}
