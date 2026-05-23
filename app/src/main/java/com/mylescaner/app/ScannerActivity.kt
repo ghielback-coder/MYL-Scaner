@@ -177,21 +177,30 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
-        AlertDialog.Builder(this)
-           .setTitle("¿Guardar en tu colección?")
-           .setMessage("Carta: $nombreDetectado\n\nLa foto se guardó. Después podrás buscar la edición correcta en tu colección.")
-           .setPositiveButton("SÍ, GUARDAR") { _, _ ->
-                // Acá en Build #80 guardamos en Room/SQLite
+    
+private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
+    AlertDialog.Builder(this)
+      .setTitle("¿Guardar en tu colección?")
+      .setMessage("Carta: $nombreDetectado")
+      .setPositiveButton("SÍ, GUARDAR") { _, _ ->
+            lifecycleScope.launch {
+                val db = AppDatabase.getDatabase(this@ScannerActivity)
+                db.cardDao().insert(
+                    CardEntity(
+                        nombreDetectado = nombreDetectado,
+                        fotoUri = uriFoto
+                    )
+                )
                 Toast.makeText(
-                    this,
+                    this@ScannerActivity,
                     "Guardada: $nombreDetectado",
                     Toast.LENGTH_LONG
                 ).show()
             }
-           .setNegativeButton("CANCELAR", null)
-           .show()
-    }
-
+        }
+      .setNegativeButton("CANCELAR", null)
+      .show()
+}
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
