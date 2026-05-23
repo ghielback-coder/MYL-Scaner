@@ -1,45 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <androidx.camera.view.PreviewView
-        android:id="@+id/previewView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#121212">
 
     <TextView
-        android:id="@+id/resultText"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#80000000"
+        android:text="MyL Scanner"
+        android:textSize="32sp"
+        android:textColor="#7B1FA2"
+        android:textStyle="bold"
+        android:layout_marginBottom="48dp" />
+
+    <TextView
+        android:id="@+id/txtCartasCargadas"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Base: 0 cartas"
         android:textColor="#FFFFFF"
-        android:padding="16dp"
-        android:text="Apunta a una carta MyL" />
+        android:textSize="16sp"
+        android:layout_marginBottom="32dp" />
 
-    <LinearLayout
+    <Button
+        android:id="@+id/btnEscanear"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:layout_marginBottom="80dp">
+        android:layout_height="72dp"
+        android:text="📷 INICIAR ESCÁNER"
+        android:textSize="18sp"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#7B1FA2" />
 
-        <Button
-            android:id="@+id/btnImport"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Importar CSV"
-            android:layout_marginEnd="8dp" />
+    <Button
+        android:id="@+id/btnColeccion"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:text="📚 MI COLECCIÓN"
+        android:textSize="18sp"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#333333" />
 
-        <Button
-            android:id="@+id/btnCollection"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Mi Colección" />
-    </LinearLayout>
+    <Button
+        android:id="@+id/btnExportar"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:text="💾 EXPORTAR CSV"
+        android:textSize="18sp"
+        android:backgroundTint="#333333" />
 
-</RelativeLayout>
+</LinearLayout>
