@@ -1,28 +1,30 @@
 package com.mylescaner.app
 
-object CardDatabase {
-    private val cartas = mutableListOf<Card>()
+import android.content.ContentValues
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 
-    init {
-        // Cartas base de Tierra Austral
-        cartas.add(Card("TAS-001", "Bandido Neira", "Tierra Austral", "Aliado", "Bandido"))
-        cartas.add(Card("TAS-036", "Lautaro", "Tierra Austral", "Aliado", "Héroe"))
-        cartas.add(Card("TAS-050", "Galvarino", "Tierra Austral", "Aliado", "Héroe"))
-        cartas.add(Card("TAS-076", "Caupolicán", "Tierra Austral", "Aliado", "Héroe"))
-        cartas.add(Card("TAS-102", "Leftraru", "Tierra Austral", "Aliado", "Héroe"))
-        // Agrega más cartas base acá si quieres
+class CardDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+
+    companion object {
+        private const val DATABASE_VERSION = 1
+        private const val DATABASE_NAME = "MyLScanner.db"
+        private const val TABLE_CARDS = "cards"
+        private const val KEY_ID = "id"
+        private const val KEY_NAME = "name"
+        private const val KEY_COUNT = "count"
     }
 
-    fun agregarCarta(carta: Card) {
-        // Solo agrega si el código no existe, pa no duplicar
-        if (!cartas.any { it.codigo == carta.codigo }) {
-            cartas.add(carta)
-        }
+    override fun onCreate(db: SQLiteDatabase) {
+        val CREATE_CARDS_TABLE = ("CREATE TABLE " + TABLE_CARDS + "("
+                + KEY_ID + " INTEGER PRIMARY KEY," + KEY_NAME + " TEXT,"
+                + KEY_COUNT + " INTEGER" + ")")
+        db.execSQL(CREATE_CARDS_TABLE)
     }
 
-    fun buscarPorNombre(nombre: String): List<Card> {
-        return cartas.filter { it.nombre.contains(nombre, ignoreCase = true) }
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_CARDS")
+        onCreate(db)
     }
-
-    fun todasLasCartas(): List<Card> = cartas.toList()
 }
