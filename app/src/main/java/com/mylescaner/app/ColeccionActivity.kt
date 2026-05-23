@@ -51,7 +51,7 @@ class ColeccionAdapter(private val cartas: List<CardEntity>) :
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-           .inflate(R.layout.item_carta_coleccion, parent, false)
+          .inflate(R.layout.item_carta_coleccion, parent, false)
         return ViewHolder(view)
     }
 
@@ -62,8 +62,8 @@ class ColeccionAdapter(private val cartas: List<CardEntity>) :
         holder.txtEdicion.text = carta.edicionSeleccionada?: "Sin edición asignada"
 
         Glide.with(holder.itemView.context)
-           .load(carta.fotoUri)
-           .into(holder.imgFoto)
+          .load(carta.fotoUri)
+          .into(holder.imgFoto)
     }
 
     override fun getItemCount() = cartas.size
