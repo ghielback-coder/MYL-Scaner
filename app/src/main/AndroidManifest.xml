@@ -4,13 +4,13 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-  
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application
         android:allowBackup="true"
         android:label="MyL Scanner"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyLScanner">
-        
+        <activity android:name=".ColeccionActivity" />
         <activity android:name=".ScannerActivity" />
        
         <activity
