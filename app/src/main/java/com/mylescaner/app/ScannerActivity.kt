@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
@@ -95,7 +94,7 @@ class ScannerActivity : AppCompatActivity() {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
                    .addOnSuccessListener { visionText ->
-                        // Solo lado izquierdo
+                        // SOLO LADO IZQUIERDO - 40% de la pantalla
                         val imageWidth = mediaImage.width
                         val leftZoneLimit = imageWidth * 0.4
 
@@ -170,8 +169,7 @@ class ScannerActivity : AppCompatActivity() {
                 }
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val msg = "Foto guardada"
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(baseContext, "Foto guardada", Toast.LENGTH_SHORT).show()
                     mostrarDialogoGuardar(currentDetectedName, output.savedUri.toString())
                 }
             }
@@ -180,14 +178,13 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
         AlertDialog.Builder(this)
-           .setTitle("¿Guardar carta?")
-           .setMessage("Nombre detectado: $nombreDetectado\n\n¿Agregar a tu colección?")
+           .setTitle("¿Guardar en tu colección?")
+           .setMessage("Carta: $nombreDetectado\n\nLa foto se guardó. Después podrás buscar la edición correcta en tu colección.")
            .setPositiveButton("SÍ, GUARDAR") { _, _ ->
-                // Acá después guardamos en Room/SQLite con nombre + foto
-                // Por ahora solo toast
+                // Acá en Build #80 guardamos en Room/SQLite
                 Toast.makeText(
                     this,
-                    "Guardada: $nombreDetectado\nDespués podrás elegir la edición",
+                    "Guardada: $nombreDetectado",
                     Toast.LENGTH_LONG
                 ).show()
             }
