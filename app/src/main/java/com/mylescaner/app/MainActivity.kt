@@ -4,10 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -19,7 +17,6 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.regex.Pattern
 
 class MainActivity : AppCompatActivity() {
     
@@ -27,11 +24,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var resultText: TextView
     private lateinit var debugText: TextView
-    private var imageCapture: ImageCapture? = null
-    
-    // Regex más flexible: acepta espacios, guiones, O vs 0, I vs 1
-    private val MYL_PATTERN = Pattern.compile("T\\s*A\\s*[-_]?\\s*([A-Z0-9O0I1]{3})", Pattern.CASE_INSENSITIVE)
+    private lateinit var cardListLayout: LinearLayout
     private val scannedCards = mutableSetOf<String>()
+    private var lastDetectedName = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,26 +38,34 @@ class MainActivity : AppCompatActivity() {
         previewView = PreviewView(this)
         
         resultText = TextView(this).apply {
-            text = "Apunta a una carta TA-XXX"
-            textSize = 22f
+            text = "Apunta al nombre de la carta"
+            textSize = 20f
             setPadding(32, 32, 32, 16)
+        }
+        
+        // Lista de cartas encontradas
+        cardListLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 0, 32, 16)
         }
         
         debugText = TextView(this).apply {
             text = "Debug OCR: esperando..."
-            textSize = 12f
+            textSize = 11f
             setPadding(32, 0, 32, 32)
             setTextColor(0xFF888888.toInt())
         }
         
         val scrollView = ScrollView(this).apply {
-            addView(debugText)
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(debugText)
+                addView(cardListLayout)
+            })
         }
         
         layout.addView(previewView, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 
-            0, 
-            1f
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ))
         layout.addView(resultText)
         layout.addView(scrollView, LinearLayout.LayoutParams(
@@ -85,17 +88,10 @@ class MainActivity : AppCompatActivity() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         
         cameraProviderFuture.addListener({
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            
-            val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-            
-            imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .build()
+            val cameraProvider = cameraProviderFuture.get()
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
             
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setTargetResolution(android.util.Size(1280, 720))
@@ -105,14 +101,12 @@ class MainActivity : AppCompatActivity() {
                     it.setAnalyzer(cameraExecutor, TextAnalyzer())
                 }
             
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-            
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalyzer)
+                val camera = cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalyzer)
+                camera.cameraControl.setZoomRatio(1.5f) // Zoom para leer mejor
             } catch(exc: Exception) {
-                Log.e("Camera", "Error al iniciar cámara", exc)
-                Toast.makeText(this, "Error cámara: ${exc.message}", Toast.LENGTH_LONG).show()
+                Log.e("Camera", "Error", exc)
             }
             
         }, ContextCompat.getMainExecutor(this))
@@ -120,9 +114,18 @@ class MainActivity : AppCompatActivity() {
 
     private inner class TextAnalyzer : ImageAnalysis.Analyzer {
         private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        private var lastProcessTime = 0L
         
         @androidx.annotation.OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
+            // Procesar solo cada 500ms para no saturar
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastProcessTime < 500) {
+                imageProxy.close()
+                return
+            }
+            lastProcessTime = currentTime
+            
             val mediaImage = imageProxy.image
             if (mediaImage != null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
@@ -130,36 +133,58 @@ class MainActivity : AppCompatActivity() {
                 recognizer.process(image)
                     .addOnSuccessListener { visionText ->
                         val rawText = visionText.text
-                        runOnUiThread {
-                            debugText.text = "Debug OCR:\n$rawText"
-                        }
+                        runOnUiThread { debugText.text = "Debug OCR:\n$rawText" }
                         
-                        val matcher = MYL_PATTERN.matcher(rawText)
-                        if (matcher.find()) {
-                            var codigo = matcher.group(0) ?: ""
-                            // Limpiar: quitar espacios, convertir O->0, I->1
-                            codigo = codigo.replace(" ", "").replace("_", "-")
-                                .replace("O", "0").replace("I", "1")
-                                .uppercase()
-                            
-                            if (!scannedCards.contains(codigo)) {
-                                scannedCards.add(codigo)
-                                runOnUiThread {
-                                    resultText.text = "✅ $codigo\nTotal: ${scannedCards.size} cartas"
+                        // Buscar líneas que parezcan nombres de carta
+                        visionText.textBlocks.forEach { block ->
+                            block.lines.forEach { line ->
+                                val texto = line.text.trim()
+                                // Filtrar: nombres suelen tener 5-30 caracteres, primera mayúscula
+                                if (texto.length in 5..30 && texto[0].isUpperCase()) {
+                                    buscarCarta(texto)
                                 }
-                                Log.d("OCR", "Encontrado: $codigo")
                             }
                         }
                     }
-                    .addOnFailureListener { e ->
-                        Log.e("OCR", "Error OCR", e)
-                    }
-                    .addOnCompleteListener {
-                        imageProxy.close()
-                    }
+                    .addOnCompleteListener { imageProxy.close() }
             } else {
                 imageProxy.close()
             }
+        }
+    }
+    
+    private fun buscarCarta(nombreDetectado: String) {
+        if (nombreDetectado == lastDetectedName) return // Evitar spam
+        lastDetectedName = nombreDetectado
+        
+        val resultados = CardDatabase.buscarPorNombre(nombreDetectado)
+        
+        runOnUiThread {
+            cardListLayout.removeAllViews()
+            
+            if (resultados.isNotEmpty()) {
+                resultText.text = "Detectado: $nombreDetectado"
+                
+                resultados.forEach { carta ->
+                    val btn = Button(this).apply {
+                        text = "${carta.nombre} - ${carta.codigo} [${carta.edicion}]"
+                        setOnClickListener {
+                            agregarCarta(carta)
+                        }
+                    }
+                    cardListLayout.addView(btn)
+                }
+            }
+        }
+    }
+    
+    private fun agregarCarta(carta: Card) {
+        if (!scannedCards.contains(carta.codigo)) {
+            scannedCards.add(carta.codigo)
+            resultText.text = "✅ Agregada: ${carta.nombre}\nTotal: ${scannedCards.size} cartas"
+            cardListLayout.removeAllViews()
+            lastDetectedName = "" // Reset para detectar otra
+            Toast.makeText(this, "Guardada: ${carta.codigo}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -169,14 +194,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Toast.makeText(this, "Se necesita permiso de cámara", Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
+        if (allPermissionsGranted()) startCamera()
     }
 
     override fun onDestroy() {
