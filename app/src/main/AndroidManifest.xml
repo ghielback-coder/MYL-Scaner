@@ -11,6 +11,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyLScanner">
         
+        <activity android:name=".ScannerActivity" />
+       
         <activity
             android:name=".MainActivity"
             android:exported="true"
