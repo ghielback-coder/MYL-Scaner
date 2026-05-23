@@ -1,5 +1,14 @@
 package com.mylescaner.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.*
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
