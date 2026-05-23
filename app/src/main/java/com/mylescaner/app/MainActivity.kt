@@ -1,11 +1,9 @@
 package com.mylescaner.app
 
+import android.util.Log  // <-- AGREGA ESTA LÍNEA
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
