@@ -71,7 +71,7 @@ class ScannerActivity : AppCompatActivity() {
         return try {
             assets.open("cartas_myl.csv").bufferedReader().useLines { lines ->
                 lines.drop(1)
-                .mapNotNull { line ->
+                   .mapNotNull { line ->
                         val parts = line.split(",")
                         if (parts.size >= 5) {
                             MylCard(
@@ -92,11 +92,11 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun normalizeText(text: String): String {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}"), "")
-        .lowercase()
-        .replace(Regex("[^a-z0-9 ]"), "")
-        .replace(Regex("\\s+"), " ")
-        .trim()
+           .replace(Regex("\\p{M}"), "")
+           .lowercase()
+           .replace(Regex("[^a-z0-9 ]"), "")
+           .replace(Regex("\\s+"), " ")
+           .trim()
     }
 
     private fun startCamera() {
@@ -110,14 +110,14 @@ class ScannerActivity : AppCompatActivity() {
     private fun bindPreview(cameraProvider: ProcessCameraProvider) {
         val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
-        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-        .build()
+           .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+           .build()
 
         preview.setSurfaceProvider(previewView.surfaceProvider)
 
         val imageAnalysis = ImageAnalysis.Builder()
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .build()
+           .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+           .build()
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
@@ -131,16 +131,19 @@ class ScannerActivity : AppCompatActivity() {
             if (mediaImage!= null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
-                .addOnSuccessListener { visionText ->
-                        val detectedText = visionText.text.lines()
-                        .map { it.trim() }
-                        .firstOrNull { it.length > 2 }?: ""
+                   .addOnSuccessListener { visionText ->
+                        // FIX 1: JUNTAR TODAS LAS LÍNEAS - ANTES SOLO TOMABA LA PRIMERA
+                        val allText = visionText.textBlocks
+                           .flatMap { it.lines }
+                           .joinToString(" ") { it.text.trim() }
+                           .replace(Regex("\\s+"), " ")
+                           .trim()
 
-                        if (detectedText.isNotEmpty()) {
-                            processDetectedText(detectedText)
+                        if (allText.length > 2) {
+                            processDetectedText(allText)
                         }
                     }
-                .addOnCompleteListener {
+                   .addOnCompleteListener {
                         imageProxy.close()
                     }
             } else {
@@ -160,20 +163,22 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun processDetectedText(text: String) {
         val currentTime = System.currentTimeMillis()
-        if (text == lastDetectedText && currentTime - lastDetectionTime < 3000) return
+        if (text == lastDetectedText && currentTime - lastDetectionTime < 2000) return
 
         lastDetectedText = text
         lastDetectionTime = currentTime
 
         runOnUiThread {
             resultText.text = text
-            Log.d("MYL", "Texto detectado: $text")
+            Log.d("MYL", "Texto detectado: '$text'")
 
             val matches = findMatchingCards(text)
             Log.d("MYL", "Matches: ${matches.size} -> ${matches.map { it.name }}")
 
             if (matches.isNotEmpty() &&!isDialogShowing) {
                 showCardDialog(matches)
+            } else if (matches.isEmpty()) {
+                Log.d("MYL", "No hubo matches para: '$text'")
             }
         }
     }
@@ -182,10 +187,32 @@ class ScannerActivity : AppCompatActivity() {
         val cleanText = normalizeText(text)
         if (cleanText.length < 3) return emptyList()
 
-        return cardList.filter { card ->
+        Log.d("MYL", "Buscando: '$cleanText'")
+
+        // FIX 2: MATCHING MÁS AGRESIVO
+        val matches = cardList.filter { card ->
             val cleanCard = normalizeText(card.name)
-            cleanCard.contains(cleanText) || cleanText.contains(cleanCard)
+
+            // 1. Match exacto
+            if (cleanCard == cleanText) return@filter true
+
+            // 2. La carta contiene todo el texto detectado
+            if (cleanCard.contains(cleanText)) return@filter true
+
+            // 3. El texto detectado contiene la carta completa
+            if (cleanText.contains(cleanCard)) return@filter true
+
+            // 4. Match por palabras: al menos 2 palabras coinciden
+            val wordsText = cleanText.split(" ").filter { it.length > 2 }
+            val wordsCard = cleanCard.split(" ").filter { it.length > 2 }
+            val commonWords = wordsText.intersect(wordsCard.toSet())
+            if (wordsText.isNotEmpty() && commonWords.size >= 2) return@filter true
+            if (wordsCard.size == 1 && commonWords.isNotEmpty()) return@filter true
+
+            false
         }.distinctBy { it.code }.take(10)
+
+        return matches
     }
 
     private fun showCardDialog(matches: List<MylCard>) {
@@ -200,8 +227,8 @@ class ScannerActivity : AppCompatActivity() {
         }.toTypedArray()
 
         AlertDialog.Builder(this)
-        .setTitle("¿Cuál es la carta?")
-        .setItems(items) { dialog, which ->
+           .setTitle("¿Cuál es la carta?")
+           .setItems(items) { dialog, which ->
                 val selected = matches[which]
                 Toast.makeText(
                     this,
@@ -210,13 +237,13 @@ class ScannerActivity : AppCompatActivity() {
                 ).show()
                 dialog.dismiss()
             }
-        .setNegativeButton("Ninguna") { dialog, _ ->
+           .setNegativeButton("Ninguna") { dialog, _ ->
                 dialog.dismiss()
             }
-        .setOnDismissListener {
+           .setOnDismissListener {
                 isDialogShowing = false
             }
-        .show()
+           .show()
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
