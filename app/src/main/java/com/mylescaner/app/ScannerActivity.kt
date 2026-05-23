@@ -2,6 +2,7 @@ package com.mylescaner.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.os.Bundle
 import android.os.Vibrator
 import android.util.Log
@@ -132,15 +133,25 @@ class ScannerActivity : AppCompatActivity() {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
                    .addOnSuccessListener { visionText ->
-                        // FIX 1: JUNTAR TODAS LAS LÍNEAS - ANTES SOLO TOMABA LA PRIMERA
-                        val allText = visionText.textBlocks
-                           .flatMap { it.lines }
-                           .joinToString(" ") { it.text.trim() }
-                           .replace(Regex("\\s+"), " ")
-                           .trim()
+                        // FIX BUILD #77: SOLO LEER EL LADO IZQUIERDO
+                        val imageWidth = mediaImage.width
+                        val leftZoneLimit = imageWidth * 0.4 // Solo 40% izquierdo de la imagen
 
-                        if (allText.length > 2) {
-                            processDetectedText(allText)
+                        val nameBlocks = visionText.textBlocks
+                           .filter { block ->
+                                val box = block.boundingBox ?: return@filter false
+                                // Solo bloques que estén en el 40% izquierdo
+                                box.left < leftZoneLimit && box.right < leftZoneLimit
+                            }
+                           .flatMap { it.lines }
+                           .map { it.text.trim() }
+                           .filter { it.length > 2 }
+
+                        // Agarramos el texto más largo del lado izquierdo = probablemente el nombre
+                        val detectedName = nameBlocks.maxByOrNull { it.length } ?: ""
+
+                        if (detectedName.length > 2) {
+                            processDetectedText(detectedName)
                         }
                     }
                    .addOnCompleteListener {
@@ -163,56 +174,47 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun processDetectedText(text: String) {
         val currentTime = System.currentTimeMillis()
-        if (text == lastDetectedText && currentTime - lastDetectionTime < 2000) return
+        if (text == lastDetectedText && currentTime - lastDetectionTime < 3000) return
 
         lastDetectedText = text
         lastDetectionTime = currentTime
 
         runOnUiThread {
             resultText.text = text
-            Log.d("MYL", "Texto detectado: '$text'")
+            Log.d("MYL", "Texto detectado LADO IZQ: '$text'")
 
             val matches = findMatchingCards(text)
             Log.d("MYL", "Matches: ${matches.size} -> ${matches.map { it.name }}")
 
             if (matches.isNotEmpty() &&!isDialogShowing) {
                 showCardDialog(matches)
-            } else if (matches.isEmpty()) {
-                Log.d("MYL", "No hubo matches para: '$text'")
             }
         }
     }
 
     private fun findMatchingCards(text: String): List<MylCard> {
         val cleanText = normalizeText(text)
-        if (cleanText.length < 3) return emptyList()
+        if (cleanText.length < 2) return emptyList()
 
         Log.d("MYL", "Buscando: '$cleanText'")
 
-        // FIX 2: MATCHING MÁS AGRESIVO
-        val matches = cardList.filter { card ->
+        // MATCHING SOLO POR NOMBRE - MÁS PRECISO
+        return cardList.filter { card ->
             val cleanCard = normalizeText(card.name)
 
-            // 1. Match exacto
-            if (cleanCard == cleanText) return@filter true
-
-            // 2. La carta contiene todo el texto detectado
+            // 1. Empieza con el mismo texto
+            if (cleanCard.startsWith(cleanText)) return@filter true
+            
+            // 2. Contiene el texto detectado
             if (cleanCard.contains(cleanText)) return@filter true
-
-            // 3. El texto detectado contiene la carta completa
-            if (cleanText.contains(cleanCard)) return@filter true
-
-            // 4. Match por palabras: al menos 2 palabras coinciden
-            val wordsText = cleanText.split(" ").filter { it.length > 2 }
-            val wordsCard = cleanCard.split(" ").filter { it.length > 2 }
-            val commonWords = wordsText.intersect(wordsCard.toSet())
-            if (wordsText.isNotEmpty() && commonWords.size >= 2) return@filter true
-            if (wordsCard.size == 1 && commonWords.isNotEmpty()) return@filter true
+            
+            // 3. Primera palabra coincide - "bandido" matchea "bandido neira"
+            val firstWordCard = cleanCard.split(" ").firstOrNull() ?: ""
+            val firstWordText = cleanText.split(" ").firstOrNull() ?: ""
+            if (firstWordCard.isNotEmpty() && firstWordCard == firstWordText) return@filter true
 
             false
-        }.distinctBy { it.code }.take(10)
-
-        return matches
+        }.distinctBy { it.code }.take(8)
     }
 
     private fun showCardDialog(matches: List<MylCard>) {
