@@ -1,3 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AppCompat.Light.DarkActionBar" parent="Theme.AppCompat.Light.DarkActionBar"/>
+    <style name="Theme.MyLScanner" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">#FF6200EE</item>
+        <item name="colorPrimaryDark">#FF3700B3</item>
+        <item name="colorAccent">#FF03DAC5</item>
+    </style>
 </resources>
