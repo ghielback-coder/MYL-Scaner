@@ -1,10 +1,13 @@
 package com.mylescaner.app
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Vibrator
 import android.util.Log
-import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -19,10 +22,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
-
-    private var isPaused = false
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var resumeRunnable: Runnable? = null
+    
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var previewView: PreviewView
     private lateinit var resultText: TextView
@@ -30,6 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardListLayout: LinearLayout
     private val scannedCards = mutableSetOf<String>()
     private var lastDetectedName = ""
+    
+    // Paso 2: Variables para pausar detección
+    private var isPaused = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var resumeRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,7 +51,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 32, 32, 16)
         }
         
-        // Lista de cartas encontradas
         cardListLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 0, 32, 16)
@@ -107,7 +111,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 cameraProvider.unbindAll()
                 val camera = cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalyzer)
-                camera.cameraControl.setZoomRatio(1.5f) // Zoom para leer mejor
+                camera.cameraControl.setZoomRatio(1.5f)
             } catch(exc: Exception) {
                 Log.e("Camera", "Error", exc)
             }
@@ -121,7 +125,12 @@ class MainActivity : AppCompatActivity() {
         
         @androidx.annotation.OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
-            // Procesar solo cada 500ms para no saturar
+            // Paso 2: Si está pausado, no procesar
+            if (isPaused) {
+                imageProxy.close()
+                return
+            }
+            
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastProcessTime < 500) {
                 imageProxy.close()
@@ -138,11 +147,9 @@ class MainActivity : AppCompatActivity() {
                         val rawText = visionText.text
                         runOnUiThread { debugText.text = "Debug OCR:\n$rawText" }
                         
-                        // Buscar líneas que parezcan nombres de carta
                         visionText.textBlocks.forEach { block ->
                             block.lines.forEach { line ->
                                 val texto = line.text.trim()
-                                // Filtrar: nombres suelen tener 5-30 caracteres, primera mayúscula
                                 if (texto.length in 5..30 && texto[0].isUpperCase()) {
                                     buscarCarta(texto)
                                 }
@@ -157,7 +164,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun buscarCarta(nombreDetectado: String) {
-        if (nombreDetectado == lastDetectedName) return // Evitar spam
+        if (nombreDetectado == lastDetectedName) return
         lastDetectedName = nombreDetectado
         
         val resultados = CardDatabase.buscarPorNombre(nombreDetectado)
@@ -166,7 +173,19 @@ class MainActivity : AppCompatActivity() {
             cardListLayout.removeAllViews()
             
             if (resultados.isNotEmpty()) {
-                resultText.text = "Detectado: $nombreDetectado"
+                // Paso 2: Pausar el OCR
+                isPaused = true
+                resultText.text = "Detectado: $nombreDetectado\nElige la carta:"
+                
+                // Auto-reanudar en 5 seg si no elige nada
+                resumeRunnable?.let { handler.removeCallbacks(it) }
+                resumeRunnable = Runnable {
+                    isPaused = false
+                    cardListLayout.removeAllViews()
+                    resultText.text = "Apunta al nombre de la carta"
+                    lastDetectedName = ""
+                }
+                handler.postDelayed(resumeRunnable!!, 5000)
                 
                 resultados.forEach { carta ->
                     val btn = Button(this).apply {
@@ -184,10 +203,19 @@ class MainActivity : AppCompatActivity() {
     private fun agregarCarta(carta: Card) {
         if (!scannedCards.contains(carta.codigo)) {
             scannedCards.add(carta.codigo)
-            resultText.text = "✅ Agregada: ${carta.nombre}\nTotal: ${scannedCards.size} cartas"
+            resultText.text = "✅ ${carta.nombre}\nTotal: ${scannedCards.size} cartas"
             cardListLayout.removeAllViews()
-            lastDetectedName = "" // Reset para detectar otra
+            
+            // Paso 2: Reanudar OCR
+            isPaused = false
+            resumeRunnable?.let { handler.removeCallbacks(it) }
+            lastDetectedName = ""
+            
             Toast.makeText(this, "Guardada: ${carta.codigo}", Toast.LENGTH_SHORT).show()
+            
+            // Vibración
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            vibrator.vibrate(100)
         }
     }
 
