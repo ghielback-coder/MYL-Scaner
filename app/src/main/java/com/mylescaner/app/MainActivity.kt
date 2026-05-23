@@ -3,11 +3,14 @@ package com.mylescaner.app
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Vibrator
 import android.util.Log
+import android.view.Gravity
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -28,15 +31,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var resultText: TextView
     private lateinit var debugText: TextView
     private lateinit var cardListLayout: LinearLayout
-    private val scannedCards = mutableSetOf<String>()
+    private lateinit var scannedListText: TextView
+    private lateinit var btnLimpiar: Button
+    private val scannedCards = mutableListOf<Card>() // Lista pa ver duplicadas
     private var lastDetectedName = ""
-    private var detectionEnabled = true // <- Nuevo: más simple que isPaused
+    private var detectionEnabled = true
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var toneGen: ToneGenerator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        val layout = LinearLayout(this).apply {
+        toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+        
+        val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
         
@@ -45,7 +53,26 @@ class MainActivity : AppCompatActivity() {
         resultText = TextView(this).apply {
             text = "Apunta al nombre de la carta"
             textSize = 20f
-            setPadding(32, 32, 32, 16)
+            setPadding(32, 32, 32, 8)
+        }
+        
+        // Botón limpiar lista
+        btnLimpiar = Button(this).apply {
+            text = "🗑️ Limpiar Lista"
+            setOnClickListener {
+                scannedCards.clear()
+                updateScannedList()
+                Toast.makeText(this@MainActivity, "Lista vaciada", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Lista de cartas escaneadas
+        scannedListText = TextView(this).apply {
+            text = "Cartas escaneadas: 0"
+            textSize = 14f
+            setPadding(32, 8, 32, 8)
+            setBackgroundColor(0xFF222222.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
         }
         
         cardListLayout = LinearLayout(this).apply {
@@ -68,16 +95,18 @@ class MainActivity : AppCompatActivity() {
             })
         }
         
-        layout.addView(previewView, LinearLayout.LayoutParams(
+        mainLayout.addView(previewView, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ))
-        layout.addView(resultText)
-        layout.addView(scrollView, LinearLayout.LayoutParams(
+        mainLayout.addView(resultText)
+        mainLayout.addView(btnLimpiar)
+        mainLayout.addView(scannedListText)
+        mainLayout.addView(scrollView, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ))
         
-        setContentView(layout)
+        setContentView(mainLayout)
         
         if (allPermissionsGranted()) {
             startCamera()
@@ -122,14 +151,13 @@ class MainActivity : AppCompatActivity() {
         
         @androidx.annotation.OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
-            // Si detección está deshabilitada, salir
             if (!detectionEnabled) {
                 imageProxy.close()
                 return
             }
             
             val currentTime = System.currentTimeMillis()
-            if (currentTime - lastProcessTime < 800) { // Subí a 800ms pa que no spamee
+            if (currentTime - lastProcessTime < 800) {
                 imageProxy.close()
                 return
             }
@@ -141,12 +169,10 @@ class MainActivity : AppCompatActivity() {
                 
                 recognizer.process(image)
                     .addOnSuccessListener { visionText ->
-                        val rawText = visionText.text
                         runOnUiThread { 
-                            debugText.text = "Debug OCR:\n$rawText" 
+                            debugText.text = "Debug OCR:\n${visionText.text}" 
                         }
                         
-                        // Solo buscar si detección está activa
                         if (detectionEnabled) {
                             visionText.textBlocks.forEach { block ->
                                 block.lines.forEach { line ->
@@ -172,15 +198,15 @@ class MainActivity : AppCompatActivity() {
         val resultados = CardDatabase.buscarPorNombre(nombreDetectado)
         
         if (resultados.isNotEmpty()) {
-            detectionEnabled = false // <- Deshabilitar ANTES de tocar UI
+            detectionEnabled = false
             
             runOnUiThread {
                 cardListLayout.removeAllViews()
-                resultText.text = "Detectado: $nombreDetectado\nElige la carta:"
+                resultText.text = "Detectado: $nombreDetectado"
                 
                 resultados.forEach { carta ->
                     val btn = Button(this).apply {
-                        text = "${carta.nombre} - ${carta.codigo}"
+                        text = "${carta.nombre}\n${carta.codigo} - ${carta.edicion}"
                         textSize = 16f
                         setPadding(16, 24, 16, 24)
                         setOnClickListener {
@@ -189,28 +215,58 @@ class MainActivity : AppCompatActivity() {
                     }
                     cardListLayout.addView(btn)
                 }
+                
+                // Botón Cancelar/Saltar
+                val btnCancelar = Button(this).apply {
+                    text = "❌ Cancelar / Saltar"
+                    setBackgroundColor(0xFF555555.toInt())
+                    setTextColor(0xFFFFFFFF.toInt())
+                    setPadding(16, 24, 16, 24)
+                    setOnClickListener {
+                        cancelarDeteccion()
+                    }
+                }
+                cardListLayout.addView(btnCancelar)
             }
         }
     }
     
+    private fun cancelarDeteccion() {
+        cardListLayout.removeAllViews()
+        detectionEnabled = true
+        lastDetectedName = ""
+        resultText.text = "Apunta al nombre de la carta\nTotal: ${scannedCards.size} cartas"
+    }
+    
     private fun agregarCarta(carta: Card) {
-        if (!scannedCards.contains(carta.codigo)) {
-            scannedCards.add(carta.codigo)
-            resultText.text = "✅ ${carta.nombre}\nTotal: ${scannedCards.size} cartas"
-            cardListLayout.removeAllViews()
-            
-            // Re-habilitar detección después de 1 segundo
-            handler.postDelayed({
-                detectionEnabled = true
-                lastDetectedName = ""
-                resultText.text = "Apunta al nombre de la carta\nTotal: ${scannedCards.size} cartas"
-            }, 1000)
-            
-            Toast.makeText(this, "Guardada: ${carta.codigo}", Toast.LENGTH_SHORT).show()
-            
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            vibrator.vibrate(100)
+        scannedCards.add(carta) // Ahora permite duplicadas
+        updateScannedList()
+        cardListLayout.removeAllViews()
+        
+        // Sonido + Vibración
+        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        vibrator.vibrate(100)
+        
+        Toast.makeText(this, "✅ ${carta.codigo}", Toast.LENGTH_SHORT).show()
+        
+        // Re-activar después de 1 seg
+        handler.postDelayed({
+            detectionEnabled = true
+            lastDetectedName = ""
+            resultText.text = "Apunta al nombre de la carta\nTotal: ${scannedCards.size} cartas"
+        }, 1000)
+    }
+    
+    private fun updateScannedList() {
+        val conteo = scannedCards.groupingBy { it.codigo }.eachCount()
+        val texto = if (conteo.isEmpty()) {
+            "Cartas escaneadas: 0"
+        } else {
+            "Cartas escaneadas: ${scannedCards.size}\n" + 
+            conteo.entries.joinToString("\n") { "${it.key} x${it.value}" }
         }
+        scannedListText.text = texto
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -225,6 +281,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        toneGen.release()
     }
 
     companion object {
