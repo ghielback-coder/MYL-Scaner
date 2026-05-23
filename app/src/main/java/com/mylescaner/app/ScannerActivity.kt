@@ -19,10 +19,13 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.google.common.util.concurrent.ListenableFuture
+import androidx.lifecycle.lifecycleScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
@@ -73,40 +76,40 @@ class ScannerActivity : AppCompatActivity() {
     private fun bindCameraUseCases() {
         val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-            .build()
+           .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+           .build()
 
         preview.setSurfaceProvider(previewView.surfaceProvider)
 
         imageCapture = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
+           .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+           .build()
 
         val imageAnalysis = ImageAnalysis.Builder()
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
+           .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+           .build()
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
             val mediaImage = imageProxy.image
-            if (mediaImage != null) {
+            if (mediaImage!= null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
-                    .addOnSuccessListener { visionText ->
+                   .addOnSuccessListener { visionText ->
                         val imageWidth = mediaImage.width
                         val leftZoneLimit = imageWidth * 0.4
 
                         val nameBlocks = visionText.textBlocks
-                            .filter { block ->
-                                val box = block.boundingBox ?: return@filter false
+                           .filter { block ->
+                                val box = block.boundingBox?: return@filter false
                                 box.left < leftZoneLimit && box.right < leftZoneLimit
                             }
-                            .flatMap { it.lines }
-                            .map { it.text.trim() }
-                            .filter { it.length > 2 }
+                           .flatMap { it.lines }
+                           .map { it.text.trim() }
+                           .filter { it.length > 2 }
 
-                        val detectedName = nameBlocks.maxByOrNull { it.length } ?: ""
+                        val detectedName = nameBlocks.maxByOrNull { it.length }?: ""
 
                         if (detectedName.isNotEmpty()) {
                             currentDetectedName = detectedName
@@ -115,7 +118,7 @@ class ScannerActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    .addOnCompleteListener {
+                   .addOnCompleteListener {
                         imageProxy.close()
                     }
             } else {
@@ -143,7 +146,7 @@ class ScannerActivity : AppCompatActivity() {
         vibrator.vibrate(100)
 
         val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-            .format(System.currentTimeMillis())
+           .format(System.currentTimeMillis())
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "MyL_$name")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -177,17 +180,29 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
         AlertDialog.Builder(this)
-            .setTitle("¿Guardar en tu colección?")
-            .setMessage("Carta: $nombreDetectado")
-            .setPositiveButton("SÍ, GUARDAR") { _, _ ->
-                Toast.makeText(
-                    this,
-                    "Guardada: $nombreDetectado",
-                    Toast.LENGTH_LONG
-                ).show()
+           .setTitle("¿Guardar en tu colección?")
+           .setMessage("Carta: $nombreDetectado")
+           .setPositiveButton("SÍ, GUARDAR") { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(this@ScannerActivity)
+                    db.cardDao().insert(
+                        CardEntity(
+                            nombreDetectado = nombreDetectado,
+                            fotoUri = uriFoto
+                        )
+                    )
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ScannerActivity,
+                            "Guardada: $nombreDetectado",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+           .setNegativeButton("CANCELAR", null)
+           .show()
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -213,4 +228,3 @@ class ScannerActivity : AppCompatActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }
-            
