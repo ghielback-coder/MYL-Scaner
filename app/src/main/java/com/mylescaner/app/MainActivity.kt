@@ -6,31 +6,47 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var db: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val txtCartas = findViewById<TextView>(R.id.txtCartasCargadas)
-        val count = contarCartas()
-        txtCartas.text = "Base: $count cartas MyL"
+        db = AppDatabase.getDatabase(this)
 
         findViewById<Button>(R.id.btnEscanear).setOnClickListener {
             startActivity(Intent(this, ScannerActivity::class.java))
         }
 
         findViewById<Button>(R.id.btnColeccion).setOnClickListener {
-            Toast.makeText(this, "Colección en desarrollo", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, ColeccionActivity::class.java))
         }
 
         findViewById<Button>(R.id.btnExportar).setOnClickListener {
-            Toast.makeText(this, "Exportar en desarrollo", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Exportar en Build #81", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun contarCartas(): Int {
+    override fun onResume() {
+        super.onResume()
+        actualizarContadores()
+    }
+
+    private fun actualizarContadores() {
+        val txtCartas = findViewById<TextView>(R.id.txtCartasCargadas)
+        lifecycleScope.launch {
+            val countBase = contarCartasBase()
+            val countColeccion = db.cardDao().getCount()
+            txtCartas.text = "Base: $countBase cartas | Colección: $countColeccion"
+        }
+    }
+
+    private fun contarCartasBase(): Int {
         return try {
             assets.open("cartas_myl.csv").bufferedReader().useLines { lines ->
                 lines.count() - 1
