@@ -19,7 +19,10 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
-    
+
+    private var isPaused = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var resumeRunnable: Runnable? = null
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var previewView: PreviewView
     private lateinit var resultText: TextView
