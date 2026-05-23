@@ -7,7 +7,7 @@
     <application
         android:allowBackup="true"
         android:label="MyL Scaner"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        android:theme="@style/AppTheme"
         <activity
             android:name=".MainActivity"
             android:exported="true">
