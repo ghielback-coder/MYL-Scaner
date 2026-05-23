@@ -52,7 +52,7 @@ class ScannerActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         cardList = loadCardsFromAssets()
-        Log.d("MYL", "Cartas cargadas en Scanner: ${cardList.size}")
+        Log.d("MYL", "Cartas cargadas: ${cardList.size}")
 
         findViewById<Button>(R.id.btnVolver).setOnClickListener {
             finish()
@@ -71,7 +71,7 @@ class ScannerActivity : AppCompatActivity() {
         return try {
             assets.open("cartas_myl.csv").bufferedReader().useLines { lines ->
                 lines.drop(1)
-                 .mapNotNull { line ->
+                .mapNotNull { line ->
                         val parts = line.split(",")
                         if (parts.size >= 5) {
                             MylCard(
@@ -92,11 +92,11 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun normalizeText(text: String): String {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-         .replace(Regex("\\p{M}"), "") // Quita tildes
-         .lowercase()
-         .replace(Regex("[^a-z0-9 ]"), "")
-         .replace(Regex("\\s+"), " ")
-         .trim()
+        .replace(Regex("\\p{M}"), "")
+        .lowercase()
+        .replace(Regex("[^a-z0-9 ]"), "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
     }
 
     private fun startCamera() {
@@ -110,14 +110,14 @@ class ScannerActivity : AppCompatActivity() {
     private fun bindPreview(cameraProvider: ProcessCameraProvider) {
         val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
-         .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-         .build()
+        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+        .build()
 
         preview.setSurfaceProvider(previewView.surfaceProvider)
 
         val imageAnalysis = ImageAnalysis.Builder()
-         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-         .build()
+        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+        .build()
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
@@ -131,16 +131,16 @@ class ScannerActivity : AppCompatActivity() {
             if (mediaImage!= null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
-                 .addOnSuccessListener { visionText ->
+                .addOnSuccessListener { visionText ->
                         val detectedText = visionText.text.lines()
-                         .map { it.trim() }
-                         .firstOrNull { it.length > 2 }?: ""
+                        .map { it.trim() }
+                        .firstOrNull { it.length > 2 }?: ""
 
                         if (detectedText.isNotEmpty()) {
                             processDetectedText(detectedText)
                         }
                     }
-                 .addOnCompleteListener {
+                .addOnCompleteListener {
                         imageProxy.close()
                     }
             } else {
@@ -170,7 +170,7 @@ class ScannerActivity : AppCompatActivity() {
             Log.d("MYL", "Texto detectado: $text")
 
             val matches = findMatchingCards(text)
-            Log.d("MYL", "Matches: ${matches.size} - ${matches.map { it.name }}")
+            Log.d("MYL", "Matches: ${matches.size} -> ${matches.map { it.name }}")
 
             if (matches.isNotEmpty() &&!isDialogShowing) {
                 showCardDialog(matches)
@@ -184,7 +184,6 @@ class ScannerActivity : AppCompatActivity() {
 
         return cardList.filter { card ->
             val cleanCard = normalizeText(card.name)
-            // Match flexible: contiene o viceversa
             cleanCard.contains(cleanText) || cleanText.contains(cleanCard)
         }.distinctBy { it.code }.take(10)
     }
@@ -201,8 +200,8 @@ class ScannerActivity : AppCompatActivity() {
         }.toTypedArray()
 
         AlertDialog.Builder(this)
-         .setTitle("¿Cuál es la carta?")
-         .setItems(items) { dialog, which ->
+        .setTitle("¿Cuál es la carta?")
+        .setItems(items) { dialog, which ->
                 val selected = matches[which]
                 Toast.makeText(
                     this,
@@ -211,13 +210,13 @@ class ScannerActivity : AppCompatActivity() {
                 ).show()
                 dialog.dismiss()
             }
-         .setNegativeButton("Ninguna") { dialog, _ ->
+        .setNegativeButton("Ninguna") { dialog, _ ->
                 dialog.dismiss()
             }
-         .setOnDismissListener {
+        .setOnDismissListener {
                 isDialogShowing = false
             }
-         .show()
+        .show()
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
