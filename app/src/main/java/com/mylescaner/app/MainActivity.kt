@@ -32,3 +32,59 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var cameraExecutor: ExecutorService
+    private lateinit var previewView: PreviewView
+    private lateinit var resultText: TextView
+    private lateinit var db: CardDatabase
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        previewView = findViewById(R.id.previewView)
+        resultText = findViewById(R.id.resultText)
+        db = CardDatabase(this)
+        cameraExecutor = Executors.newSingleThreadExecutor()
+        
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            ActivityCompat.requestPermissions(
+                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+            )
+        }
+        
+        findViewById<Button>(R.id.btnImport).setOnClickListener { importCSV() }
+        findViewById<Button>(R.id.btnCollection).setOnClickListener { showCollection() }
+    }
+    
+    private fun startCamera() {
+        // Código de cámara + ML Kit acá
+        Toast.makeText(this, "Cámara iniciada", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun importCSV() {
+        Toast.makeText(this, "Importar CSV", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun showCollection() {
+        Toast.makeText(this, "Mi Colección", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+    }
+    
+    companion object {
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+}
