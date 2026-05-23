@@ -65,16 +65,32 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 32, 32, 8)
         }
         
-        // Botón limpiar lista
-        btnLimpiar = Button(this).apply {
-            text = "🗑️ Limpiar Lista"
-            setOnClickListener {
-                scannedCards.clear()
-                updateScannedList()
-                Toast.makeText(this@MainActivity, "Lista vaciada", Toast.LENGTH_SHORT).show()
-            }
-        }
-        
+        // Botón limpiar lista - ya lo tienes
+btnLimpiar = Button(this).apply {
+    text = "🗑️ LIMPIAR LISTA"
+    setOnClickListener {
+        scannedCards.clear()
+        updateScannedList()
+        Toast.makeText(this@MainActivity, "Lista vaciada", Toast.LENGTH_SHORT).show()
+    }
+}
+
+// NUEVO: Botón copiar
+val btnCopiar = Button(this).apply {
+    text = "📋 COPIAR LISTA"
+    setOnClickListener {
+        copiarAlPortapapeles()
+    }
+}
+
+// NUEVO: Botón compartir
+val btnCompartir = Button(this).apply {
+    text = "📤 EXPORTAR / COMPARTIR"
+    setOnClickListener {
+        exportarYCompartir()
+    }
+}
+           
         // Lista de cartas escaneadas
         scannedListText = TextView(this).apply {
             text = "Cartas escaneadas: 0"
