@@ -3,7 +3,7 @@ package com.mylescaner.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -24,29 +24,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var resultText: TextView
     
-    // Base de datos Tierra Austral - 236 cartas
     private val tierraAustral = mapOf(
         "TA-001" to "Guerrero Jaguar",
         "TA-002" to "Luz de Amanecer", 
         "TA-003" to "Pacto de Sangre",
         "TA-236" to "Dragón Austral"
-        // Aquí van las 236. Por ahora dejé 4 de ejemplo pa que compile rápido.
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Layout simple con cámara
         previewView = PreviewView(this)
         resultText = TextView(this).apply {
-            text = "Apunta a una carta de Tierra Austral"
+            text = "MyL Scaner v1.1\nApunta a una carta TA-XXX"
             textSize = 18f
             setPadding(32, 32, 32, 32)
         }
         
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            addView(previewView, android.widget.LinearLayout.LayoutParams(-1, 0, 1f))
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(previewView, LinearLayout.LayoutParams(-1, 0, 1f))
             addView(resultText)
         }
         setContentView(layout)
@@ -69,40 +66,38 @@ class MainActivity : AppCompatActivity() {
             }
             
             val imageAnalyzer = ImageAnalysis.Builder().build().also {
-                it.setAnalyzer(cameraExecutor, TextAnalyzer())
+                it.setAnalyzer(cameraExecutor) { imageProxy ->
+                    val mediaImage = imageProxy.image
+                    if (mediaImage!= null) {
+                        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                        recognizer.process(image)
+                          .addOnSuccessListener { visionText ->
+                                val text = visionText.text.uppercase().replace(" ", "")
+                                val match = Regex("TA\\d{3}").find(text)
+                                if (match!= null) {
+                                    val codigo = match.value.replace("TA", "TA-")
+                                    val nombre = tierraAustral[codigo]?: "Carta no registrada"
+                                    runOnUiThread {
+                                        resultText.text = "$codigo\n$nombre"
+                                    }
+                                }
+                            }
+                          .addOnCompleteListener { imageProxy.close() }
+                    } else {
+                        imageProxy.close()
+                    }
+                }
             }
             
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-            cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer)
-        }, ContextCompat.getMainExecutor(this))
-    }
-
-    private inner class TextAnalyzer : ImageAnalysis.Analyzer {
-        private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        
-        @androidx.camera.core.ExperimentalGetImage
-        override fun analyze(imageProxy: ImageProxy) {
-            val mediaImage = imageProxy.image
-            if (mediaImage!= null) {
-                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                recognizer.process(image)
-                   .addOnSuccessListener { visionText ->
-                        for (block in visionText.textBlocks) {
-                            val text = block.text.uppercase().replace(" ", "")
-                            // Busca códigos TA-001 a TA-236
-                            val match = Regex("TA-\\d{3}").find(text)
-                            if (match!= null) {
-                                val codigo = match.value
-                                val nombre = tierraAustral[codigo]?: "Carta no encontrada"
-                                runOnUiThread {
-                                    resultText.text = "$codigo\n$nombre"
-                                }
-                            }
-                        }
-                    }
-                   .addOnCompleteListener { imageProxy.close() }
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer)
+            } catch(exc: Exception) {
+                Log.e("Camera", "Use case binding failed", exc)
             }
-        }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
