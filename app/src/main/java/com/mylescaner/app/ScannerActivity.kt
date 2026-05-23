@@ -1,10 +1,12 @@
 package com.mylescaner.app
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.os.Vibrator
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
@@ -22,27 +24,19 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.text.Normalizer
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-
-data class MylCard(
-    val code: String,
-    val name: String,
-    val type: String,
-    val rarity: String,
-    val race: String
-)
 
 class ScannerActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var previewView: PreviewView
     private lateinit var resultText: TextView
-    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
-    private var lastDetectedText = ""
-    private var lastDetectionTime = 0L
-    private var cardList: List<MylCard> = emptyList()
-    private var isDialogShowing = false
+    private lateinit var imageCapture: ImageCapture
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var currentDetectedName = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,11 +46,12 @@ class ScannerActivity : AppCompatActivity() {
         resultText = findViewById(R.id.resultText)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        cardList = loadCardsFromAssets()
-        Log.d("MYL", "Cartas cargadas: ${cardList.size}")
-
         findViewById<Button>(R.id.btnVolver).setOnClickListener {
             finish()
+        }
+
+        findViewById<Button>(R.id.btnCapturar).setOnClickListener {
+            capturarFoto()
         }
 
         if (allPermissionsGranted()) {
@@ -68,53 +63,25 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadCardsFromAssets(): List<MylCard> {
-        return try {
-            assets.open("cartas_myl.csv").bufferedReader().useLines { lines ->
-                lines.drop(1)
-                   .mapNotNull { line ->
-                        val parts = line.split(",")
-                        if (parts.size >= 5) {
-                            MylCard(
-                                code = parts[0].trim(),
-                                name = parts[1].trim(),
-                                type = parts[2].trim(),
-                                rarity = parts[3].trim(),
-                                race = parts[4].trim()
-                            )
-                        } else null
-                    }.toList()
-            }
-        } catch (e: Exception) {
-            Log.e("MYL", "Error cargando CSV", e)
-            emptyList()
-        }
-    }
-
-    private fun normalizeText(text: String): String {
-        return Normalizer.normalize(text, Normalizer.Form.NFD)
-           .replace(Regex("\\p{M}"), "")
-           .lowercase()
-           .replace(Regex("[^a-z0-9 ]"), "")
-           .replace(Regex("\\s+"), " ")
-           .trim()
-    }
-
     private fun startCamera() {
-        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
-            bindPreview(cameraProvider)
+            cameraProvider = cameraProviderFuture.get()
+            bindCameraUseCases()
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun bindPreview(cameraProvider: ProcessCameraProvider) {
+    private fun bindCameraUseCases() {
         val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
            .build()
 
         preview.setSurfaceProvider(previewView.surfaceProvider)
+
+        imageCapture = ImageCapture.Builder()
+           .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+           .build()
 
         val imageAnalysis = ImageAnalysis.Builder()
            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -123,35 +90,31 @@ class ScannerActivity : AppCompatActivity() {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-            if (isDialogShowing) {
-                imageProxy.close()
-                return@setAnalyzer
-            }
-
             val mediaImage = imageProxy.image
             if (mediaImage!= null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
                    .addOnSuccessListener { visionText ->
-                        // FIX BUILD #77: SOLO LEER EL LADO IZQUIERDO
+                        // Solo lado izquierdo
                         val imageWidth = mediaImage.width
-                        val leftZoneLimit = imageWidth * 0.4 // Solo 40% izquierdo de la imagen
+                        val leftZoneLimit = imageWidth * 0.4
 
                         val nameBlocks = visionText.textBlocks
                            .filter { block ->
                                 val box = block.boundingBox ?: return@filter false
-                                // Solo bloques que estén en el 40% izquierdo
                                 box.left < leftZoneLimit && box.right < leftZoneLimit
                             }
                            .flatMap { it.lines }
                            .map { it.text.trim() }
                            .filter { it.length > 2 }
 
-                        // Agarramos el texto más largo del lado izquierdo = probablemente el nombre
                         val detectedName = nameBlocks.maxByOrNull { it.length } ?: ""
-
-                        if (detectedName.length > 2) {
-                            processDetectedText(detectedName)
+                        
+                        if (detectedName.isNotEmpty()) {
+                            currentDetectedName = detectedName
+                            runOnUiThread {
+                                resultText.text = detectedName
+                            }
                         }
                     }
                    .addOnCompleteListener {
@@ -163,88 +126,72 @@ class ScannerActivity : AppCompatActivity() {
         }
 
         try {
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-                this as LifecycleOwner, cameraSelector, preview, imageAnalysis
+            cameraProvider?.unbindAll()
+            cameraProvider?.bindToLifecycle(
+                this as LifecycleOwner, cameraSelector, preview, imageCapture, imageAnalysis
             )
         } catch (e: Exception) {
             Log.e("MYL", "Error al iniciar cámara", e)
         }
     }
 
-    private fun processDetectedText(text: String) {
-        val currentTime = System.currentTimeMillis()
-        if (text == lastDetectedText && currentTime - lastDetectionTime < 3000) return
-
-        lastDetectedText = text
-        lastDetectionTime = currentTime
-
-        runOnUiThread {
-            resultText.text = text
-            Log.d("MYL", "Texto detectado LADO IZQ: '$text'")
-
-            val matches = findMatchingCards(text)
-            Log.d("MYL", "Matches: ${matches.size} -> ${matches.map { it.name }}")
-
-            if (matches.isNotEmpty() &&!isDialogShowing) {
-                showCardDialog(matches)
-            }
+    private fun capturarFoto() {
+        if (currentDetectedName.isEmpty()) {
+            Toast.makeText(this, "Apunta al nombre de la carta primero", Toast.LENGTH_SHORT).show()
+            return
         }
-    }
-
-    private fun findMatchingCards(text: String): List<MylCard> {
-        val cleanText = normalizeText(text)
-        if (cleanText.length < 2) return emptyList()
-
-        Log.d("MYL", "Buscando: '$cleanText'")
-
-        // MATCHING SOLO POR NOMBRE - MÁS PRECISO
-        return cardList.filter { card ->
-            val cleanCard = normalizeText(card.name)
-
-            // 1. Empieza con el mismo texto
-            if (cleanCard.startsWith(cleanText)) return@filter true
-            
-            // 2. Contiene el texto detectado
-            if (cleanCard.contains(cleanText)) return@filter true
-            
-            // 3. Primera palabra coincide - "bandido" matchea "bandido neira"
-            val firstWordCard = cleanCard.split(" ").firstOrNull() ?: ""
-            val firstWordText = cleanText.split(" ").firstOrNull() ?: ""
-            if (firstWordCard.isNotEmpty() && firstWordCard == firstWordText) return@filter true
-
-            false
-        }.distinctBy { it.code }.take(8)
-    }
-
-    private fun showCardDialog(matches: List<MylCard>) {
-        if (isDialogShowing) return
-        isDialogShowing = true
 
         val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
         vibrator.vibrate(100)
 
-        val items = matches.map {
-            "${it.name}\n${it.code} | ${it.rarity} | ${it.race}"
-        }.toTypedArray()
+        val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+           .format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "MyL_$name")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/MyLScanner")
+            }
+        }
 
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(
+            contentResolver,
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            contentValues
+        ).build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onError(exc: ImageCaptureException) {
+                    Log.e("MYL", "Error al capturar: ${exc.message}", exc)
+                    Toast.makeText(baseContext, "Error al guardar foto", Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val msg = "Foto guardada"
+                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                    mostrarDialogoGuardar(currentDetectedName, output.savedUri.toString())
+                }
+            }
+        )
+    }
+
+    private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
         AlertDialog.Builder(this)
-           .setTitle("¿Cuál es la carta?")
-           .setItems(items) { dialog, which ->
-                val selected = matches[which]
+           .setTitle("¿Guardar carta?")
+           .setMessage("Nombre detectado: $nombreDetectado\n\n¿Agregar a tu colección?")
+           .setPositiveButton("SÍ, GUARDAR") { _, _ ->
+                // Acá después guardamos en Room/SQLite con nombre + foto
+                // Por ahora solo toast
                 Toast.makeText(
                     this,
-                    "Seleccionada: ${selected.name}",
+                    "Guardada: $nombreDetectado\nDespués podrás elegir la edición",
                     Toast.LENGTH_LONG
                 ).show()
-                dialog.dismiss()
             }
-           .setNegativeButton("Ninguna") { dialog, _ ->
-                dialog.dismiss()
-            }
-           .setOnDismissListener {
-                isDialogShowing = false
-            }
+           .setNegativeButton("CANCELAR", null)
            .show()
     }
 
