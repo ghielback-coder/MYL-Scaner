@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.mylescaner.app">
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
-        android:label="MyL Scaner"
+        android:label="@string/app_name"
         android:theme="@style/AppTheme"
+        android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -17,4 +19,5 @@
             </intent-filter>
         </activity>
     </application>
+
 </manifest>
