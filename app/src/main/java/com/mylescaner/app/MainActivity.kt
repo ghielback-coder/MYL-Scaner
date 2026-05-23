@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnExportar).setOnClickListener {
-            Toast.makeText(this, "Exportar en Build #81", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Exportar en Build #83", Toast.LENGTH_SHORT).show()
         }
     }
 
