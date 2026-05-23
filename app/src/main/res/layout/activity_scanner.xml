@@ -20,10 +20,18 @@
             android:id="@+id/resultText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Apunta a una carta..."
+            android:text="Apunta al nombre de la carta..."
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:gravity="center" />
+
+        <Button
+            android:id="@+id/btnCapturar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📸 CAPTURAR CARTA"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#7B1FA2" />
 
         <Button
             android:id="@+id/btnVolver"
