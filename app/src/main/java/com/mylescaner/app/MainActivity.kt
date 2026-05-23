@@ -30,11 +30,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardListLayout: LinearLayout
     private val scannedCards = mutableSetOf<String>()
     private var lastDetectedName = ""
-    
-    // Paso 2: Variables para pausar detección
-    private var isPaused = false
+    private var detectionEnabled = true // <- Nuevo: más simple que isPaused
     private val handler = Handler(Looper.getMainLooper())
-    private var resumeRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,14 +122,14 @@ class MainActivity : AppCompatActivity() {
         
         @androidx.annotation.OptIn(ExperimentalGetImage::class)
         override fun analyze(imageProxy: ImageProxy) {
-            // Paso 2: Si está pausado, no procesar
-            if (isPaused) {
+            // Si detección está deshabilitada, salir
+            if (!detectionEnabled) {
                 imageProxy.close()
                 return
             }
             
             val currentTime = System.currentTimeMillis()
-            if (currentTime - lastProcessTime < 500) {
+            if (currentTime - lastProcessTime < 800) { // Subí a 800ms pa que no spamee
                 imageProxy.close()
                 return
             }
@@ -145,13 +142,18 @@ class MainActivity : AppCompatActivity() {
                 recognizer.process(image)
                     .addOnSuccessListener { visionText ->
                         val rawText = visionText.text
-                        runOnUiThread { debugText.text = "Debug OCR:\n$rawText" }
+                        runOnUiThread { 
+                            debugText.text = "Debug OCR:\n$rawText" 
+                        }
                         
-                        visionText.textBlocks.forEach { block ->
-                            block.lines.forEach { line ->
-                                val texto = line.text.trim()
-                                if (texto.length in 5..30 && texto[0].isUpperCase()) {
-                                    buscarCarta(texto)
+                        // Solo buscar si detección está activa
+                        if (detectionEnabled) {
+                            visionText.textBlocks.forEach { block ->
+                                block.lines.forEach { line ->
+                                    val texto = line.text.trim()
+                                    if (texto.length in 5..30 && texto[0].isUpperCase()) {
+                                        buscarCarta(texto)
+                                    }
                                 }
                             }
                         }
@@ -164,32 +166,23 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun buscarCarta(nombreDetectado: String) {
-        if (nombreDetectado == lastDetectedName) return
+        if (nombreDetectado == lastDetectedName || !detectionEnabled) return
         lastDetectedName = nombreDetectado
         
         val resultados = CardDatabase.buscarPorNombre(nombreDetectado)
         
-        runOnUiThread {
-            cardListLayout.removeAllViews()
+        if (resultados.isNotEmpty()) {
+            detectionEnabled = false // <- Deshabilitar ANTES de tocar UI
             
-            if (resultados.isNotEmpty()) {
-                // Paso 2: Pausar el OCR
-                isPaused = true
+            runOnUiThread {
+                cardListLayout.removeAllViews()
                 resultText.text = "Detectado: $nombreDetectado\nElige la carta:"
-                
-                // Auto-reanudar en 5 seg si no elige nada
-                resumeRunnable?.let { handler.removeCallbacks(it) }
-                resumeRunnable = Runnable {
-                    isPaused = false
-                    cardListLayout.removeAllViews()
-                    resultText.text = "Apunta al nombre de la carta"
-                    lastDetectedName = ""
-                }
-                handler.postDelayed(resumeRunnable!!, 5000)
                 
                 resultados.forEach { carta ->
                     val btn = Button(this).apply {
-                        text = "${carta.nombre} - ${carta.codigo} [${carta.edicion}]"
+                        text = "${carta.nombre} - ${carta.codigo}"
+                        textSize = 16f
+                        setPadding(16, 24, 16, 24)
                         setOnClickListener {
                             agregarCarta(carta)
                         }
@@ -206,14 +199,15 @@ class MainActivity : AppCompatActivity() {
             resultText.text = "✅ ${carta.nombre}\nTotal: ${scannedCards.size} cartas"
             cardListLayout.removeAllViews()
             
-            // Paso 2: Reanudar OCR
-            isPaused = false
-            resumeRunnable?.let { handler.removeCallbacks(it) }
-            lastDetectedName = ""
+            // Re-habilitar detección después de 1 segundo
+            handler.postDelayed({
+                detectionEnabled = true
+                lastDetectedName = ""
+                resultText.text = "Apunta al nombre de la carta\nTotal: ${scannedCards.size} cartas"
+            }, 1000)
             
             Toast.makeText(this, "Guardada: ${carta.codigo}", Toast.LENGTH_SHORT).show()
             
-            // Vibración
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             vibrator.vibrate(100)
         }
