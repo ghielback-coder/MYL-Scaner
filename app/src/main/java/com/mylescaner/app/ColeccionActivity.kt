@@ -37,4 +37,16 @@ import java.util.*
 class ColeccionActivity : AppCompatActivity() {
 
     private lateinit var adapter: CartasAdapter
-    private lateinit var db:
+    private lateinit var db: AppDatabase
+    private var listaEdiciones = listOf<EdicionEntity>()
+    private var searchJob: Job? = null
+    private var queryActual = ""
+
+    // Carpeta donde TÚ metes las fotos - Visible en galería
+    private val carpetaPendientes by lazy {
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyLScanner/Pendientes")
+    }
+
+    // Carpeta privada donde la app guarda las fotos - INVISIBLE para galería
+    private val carpetaPrivada by lazy {
+        File(get
