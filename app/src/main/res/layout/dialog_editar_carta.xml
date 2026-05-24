@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <EditText
+        android:id="@+id/edtNombreEditar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Nombre de la carta"
+        android:textColor="#FFFFFF"
+        android:background="#1E1E1E"
+        android:padding="12dp"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Edición:"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="8dp" />
+
+    <Spinner
+        android:id="@+id/spinnerEdicionEditar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="16dp"
+        android:background="#1E1E1E"
+        android:popupBackground="#1E1E1E" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Número de Coleccionista:"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/edtNumeroEditar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Ej: 150/250"
+        android:textColorHint="#666666"
+        android:textColor="#FFFFFF"
+        android:background="#1E1E1E"
+        android:padding="12dp"
+        android:inputType="text" />
+
+</LinearLayout>
