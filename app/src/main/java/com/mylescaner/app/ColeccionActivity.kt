@@ -1,14 +1,10 @@
 package com.mylescaner.app
 
-import android.app.Activity
 import android.app.ProgressDialog
-import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.DocumentsContract
-import android.provider.MediaStore
+import android.os.Environment
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -16,11 +12,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.gms.tasks.Tasks
@@ -28,9 +25,12 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,26 +39,32 @@ class ColeccionActivity : AppCompatActivity() {
     private lateinit var adapter: CartasAdapter
     private lateinit var db: AppDatabase
     private var listaEdiciones = listOf<EdicionEntity>()
+    private var searchJob: Job? = null
+    private var queryActual = ""
 
-    private val seleccionarCarpetaLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val uriCarpeta = result.data?.data
-            if (uriCarpeta != null) {
-                procesarCarpetaImagenes(uriCarpeta)
-            }
-        }
+    // Carpeta de entrada y salida
+    private val carpetaPendientes by lazy {
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyLScanner/Pendientes")
+    }
+    private val carpetaImportadas by lazy {
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyLScanner/Importadas")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_coleccion)
 
+        // Crear carpetas si no existen
+        if (!carpetaPendientes.exists()) carpetaPendientes.mkdirs()
+        if (!carpetaImportadas.exists()) carpetaImportadas.mkdirs()
+
         db = AppDatabase.getDatabase(this)
         val recycler = findViewById<RecyclerView>(R.id.recyclerColeccion)
         val txtTotal = findViewById<TextView>(R.id.txtTotal)
         val edtBuscar = findViewById<EditText>(R.id.edtBuscar)
+        val txtRuta = findViewById<TextView>(R.id.txtRutaPendientes)
+
+        txtRuta.text = "Mete fotos en: ${carpetaPendientes.absolutePath}"
 
         adapter = CartasAdapter { carta, accion ->
             when (accion) {
@@ -73,13 +79,13 @@ class ColeccionActivity : AppCompatActivity() {
         recycler.adapter = adapter
 
         findViewById<Button>(R.id.btnVolver).setOnClickListener { finish() }
-        
-        findViewById<Button>(R.id.btnImportarCarpeta).setOnClickListener {
-            abrirSelectorCarpeta()
+
+        findViewById<Button>(R.id.btnEscanearPendientes).setOnClickListener {
+            escanearCarpetaPendientes()
         }
 
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAgregarEdicion)
-            .setOnClickListener { mostrarDialogoNuevaEdicion() }
+          .setOnClickListener { mostrarDialogoNuevaEdicion() }
 
         lifecycleScope.launch {
             db.edicionDao().getAll().collectLatest { ediciones ->
@@ -96,11 +102,21 @@ class ColeccionActivity : AppCompatActivity() {
             }
         }
 
+        // Un solo Flow para todo
         lifecycleScope.launch {
             db.cardDao().getAll().collectLatest { lista ->
-                adapter.submitList(lista)
+                val listaFiltrada = if (queryActual.isEmpty()) {
+                    lista
+                } else {
+                    lista.filter {
+                        it.nombreDetectado.contains(queryActual, ignoreCase = true) ||
+                        it.edicionSeleccionada.contains(queryActual, ignoreCase = true) ||
+                        it.numeroColeccionista?.contains(queryActual, ignoreCase = true) == true
+                    }
+                }
+                adapter.submitList(listaFiltrada)
                 val enColeccion = lista.count { it.enColeccion }
-                val faltantes = lista.count { !it.enColeccion }
+                val faltantes = lista.count {!it.enColeccion }
                 txtTotal.text = "Total: ${lista.size} | Tengo: $enColeccion | Faltan: $faltantes"
             }
         }
@@ -109,67 +125,39 @@ class ColeccionActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val query = s.toString()
-                lifecycleScope.launch {
-                    if (query.isEmpty()) {
-                        db.cardDao().getAll().collectLatest { adapter.submitList(it) }
-                    } else {
-                        db.cardDao().search(query).collectLatest { adapter.submitList(it) }
-                    }
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    delay(300)
+                    queryActual = s.toString()
+                    // El Flow de arriba se actualiza solo porque queryActual cambió
                 }
             }
         })
     }
 
-    private fun abrirSelectorCarpeta() {
+    private fun escanearCarpetaPendientes() {
         if (listaEdiciones.isEmpty()) {
             Toast.makeText(this, "Agrega al menos 1 edición primero con el botón +", Toast.LENGTH_LONG).show()
             return
         }
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-        seleccionarCarpetaLauncher.launch(intent)
-    }
 
-    private fun procesarCarpetaImagenes(uriCarpeta: Uri) {
-        val dialogCargando = ProgressDialog(this)
-        dialogCargando.setMessage("Escaneando carpeta...")
-        dialogCargando.setCancelable(false)
-        dialogCargando.show()
+        val archivos = carpetaPendientes.listFiles { file ->
+            file.isFile && (file.extension.equals("jpg", true) || 
+                           file.extension.equals("jpeg", true) || 
+                           file.extension.equals("png", true))
+        }?: emptyArray()
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            val contentResolver = applicationContext.contentResolver
-            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
-                uriCarpeta,
-                DocumentsContract.getTreeDocumentId(uriCarpeta)
-            )
-
-            val cursor = contentResolver.query(
-                childrenUri,
-                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_MIME_TYPE),
-                null, null, null
-            )
-
-            val imagenes = mutableListOf<Uri>()
-            cursor?.use {
-                while (it.moveToNext()) {
-                    val docId = it.getString(0)
-                    val mimeType = it.getString(1)
-                    if (mimeType.startsWith("image/")) {
-                        val docUri = DocumentsContract.buildDocumentUriUsingTree(uriCarpeta, docId)
-                        imagenes.add(docUri)
-                    }
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                dialogCargando.dismiss()
-                if (imagenes.isEmpty()) {
-                    Toast.makeText(this@ColeccionActivity, "No hay imágenes en esa carpeta", Toast.LENGTH_SHORT).show()
-                } else {
-                    mostrarDialogoImportarMasivo(imagenes)
-                }
-            }
+        if (archivos.isEmpty()) {
+            AlertDialog.Builder(this)
+              .setTitle("Carpeta vacía")
+              .setMessage("No hay fotos en:\n\n${carpetaPendientes.absolutePath}\n\nMete las fotos ahí y vuelve a escanear.")
+              .setPositiveButton("OK", null)
+              .show()
+            return
         }
+
+        val imagenes = archivos.map { Uri.fromFile(it) }
+        mostrarDialogoImportarMasivo(imagenes)
     }
 
     private fun mostrarDialogoImportarMasivo(imagenes: List<Uri>) {
@@ -195,19 +183,19 @@ class ColeccionActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Importar ${imagenes.size} cartas")
-            .setMessage("Elige la edición. El nombre se detectará automático.")
-            .setView(dialogView)
-            .setPositiveButton("IMPORTAR TODAS") { _, _ ->
+          .setTitle("Importar ${imagenes.size} cartas")
+          .setMessage("Las fotos se moverán a 'Importadas' después.\nEl nombre se detectará automático.")
+          .setView(dialogView)
+          .setPositiveButton("IMPORTAR Y MOVER") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
                 val numeroInicial = edtNumero.text.toString().toIntOrNull()
-                importarCartasMasivo(imagenes, edicionSeleccionada, numeroInicial)
+                importarYMover(imagenes, edicionSeleccionada, numeroInicial)
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+          .setNegativeButton("CANCELAR", null)
+          .show()
     }
 
-    private fun importarCartasMasivo(imagenes: List<Uri>, edicion: EdicionEntity, numeroInicial: Int?) {
+    private fun importarYMover(imagenes: List<Uri>, edicion: EdicionEntity, numeroInicial: Int?) {
         val dialogProgreso = ProgressDialog(this)
         dialogProgreso.setMessage("Procesando 0/${imagenes.size}...")
         dialogProgreso.setCancelable(false)
@@ -215,50 +203,40 @@ class ColeccionActivity : AppCompatActivity() {
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         var contador = 0
-        var duplicadas = 0
         var numeroActual = numeroInicial
+        val archivosAMover = mutableListOf<File>()
 
         lifecycleScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(this@ColeccionActivity)
 
             for (uri in imagenes) {
                 try {
-                    val uriPermanente = copiarImagenAGaleriaApp(uri)
-                    val uriString = uriPermanente.toString()
+                    val archivo = File(uri.path!!)
+                    archivosAMover.add(archivo)
 
-                    val yaExiste = db.cardDao().getByUri(uriString)
-                    if (yaExiste != null) {
-                        duplicadas++
-                        contador++
-                        withContext(Dispatchers.Main) {
-                            dialogProgreso.setMessage("Procesando $contador/${imagenes.size}... Saltadas: $duplicadas")
-                        }
-                        continue
-                    }
-
-                    val image = InputImage.fromFilePath(this@ColeccionActivity, uriPermanente)
+                    val image = InputImage.fromFilePath(this@ColeccionActivity, uri)
                     val visionText = Tasks.await(recognizer.process(image))
 
-                    val imageWidth = visionText.textBlocks.maxOfOrNull { it.boundingBox?.right ?: 0 } ?: 1000
+                    val imageWidth = visionText.textBlocks.maxOfOrNull { it.boundingBox?.right?: 0 }?: 1000
                     val leftZoneLimit = (imageWidth * 0.4).toInt()
 
                     val nombre = visionText.textBlocks
-                        .filter { block ->
-                            val box = block.boundingBox ?: return@filter false
+                      .filter { block ->
+                            val box = block.boundingBox?: return@filter false
                             box.left < leftZoneLimit && box.right < leftZoneLimit
                         }
-                        .flatMap { it.lines }
-                        .map { it.text.trim() }
-                        .filter { it.length > 2 && !it.contains(" ") && it.any { c -> c.isLetter() } }
-                        .maxByOrNull { it.length } ?: "SinNombre_$contador"
+                      .flatMap { it.lines }
+                      .map { it.text.trim() }
+                      .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
+                      .maxByOrNull { it.length }?: "SinNombre_$contador"
 
-                    val numeroCompleto = if (numeroActual != null) "${edicion.sigla}-$numeroActual" else null
-                    if (numeroActual != null) numeroActual++
+                    val numeroCompleto = if (numeroActual!= null) "${edicion.sigla}-$numeroActual" else null
+                    if (numeroActual!= null) numeroActual++
 
                     db.cardDao().insert(
                         CardEntity(
                             nombreDetectado = nombre,
-                            fotoUri = uriString,
+                            fotoUri = uri.toString(),
                             edicionSeleccionada = edicion.nombre,
                             numeroColeccionista = numeroCompleto,
                             enColeccion = true
@@ -270,42 +248,29 @@ class ColeccionActivity : AppCompatActivity() {
 
                 contador++
                 withContext(Dispatchers.Main) {
-                    dialogProgreso.setMessage("Procesando $contador/${imagenes.size}... Saltadas: $duplicadas")
+                    dialogProgreso.setMessage("Procesando $contador/${imagenes.size}...")
+                }
+            }
+
+            // MOVER ARCHIVOS DESPUÉS DE IMPORTAR
+            archivosAMover.forEach { archivo ->
+                try {
+                    val destino = File(carpetaImportadas, archivo.name)
+                    archivo.renameTo(destino)
+                } catch (e: Exception) {
+                    Log.e("MYL", "Error moviendo archivo ${archivo.name}", e)
                 }
             }
 
             withContext(Dispatchers.Main) {
                 dialogProgreso.dismiss()
-                val importadas = contador - duplicadas
-                Toast.makeText(this@ColeccionActivity, "Importadas: $importadas | Duplicadas: $duplicadas", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this@ColeccionActivity, 
+                    "Importadas: $contador cartas\nMovidas a: Importadas/", 
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
-    }
-
-    private fun copiarImagenAGaleriaApp(uriOriginal: Uri): Uri {
-        val name = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(System.currentTimeMillis())
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "MyL_Import_$name")
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/MyLScanner")
-            }
-        }
-
-        val uriDestino = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-        if (uriDestino != null) {
-            try {
-                contentResolver.openInputStream(uriOriginal)?.use { input ->
-                    contentResolver.openOutputStream(uriDestino)?.use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                return uriDestino
-            } catch (e: Exception) {
-                Log.e("MYL", "Error copiando imagen", e)
-            }
-        }
-        return uriOriginal
     }
 
     private fun abrirVisorImagen(uriFoto: String) {
@@ -320,9 +285,9 @@ class ColeccionActivity : AppCompatActivity() {
         val edtSigla = dialogView.findViewById<EditText>(R.id.edtSiglaEdicion)
 
         AlertDialog.Builder(this)
-            .setTitle("Agregar Edición")
-            .setView(dialogView)
-            .setPositiveButton("AGREGAR") { _, _ ->
+          .setTitle("Agregar Edición")
+          .setView(dialogView)
+          .setPositiveButton("AGREGAR") { _, _ ->
                 val nombre = edtNombre.text.toString()
                 val sigla = edtSigla.text.toString().uppercase()
                 if (nombre.isNotEmpty() && sigla.isNotEmpty()) {
@@ -334,8 +299,8 @@ class ColeccionActivity : AppCompatActivity() {
                     Toast.makeText(this, "Completa nombre y sigla", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+          .setNegativeButton("CANCELAR", null)
+          .show()
     }
 
     private fun mostrarDialogoEditar(carta: CardEntity) {
@@ -346,7 +311,7 @@ class ColeccionActivity : AppCompatActivity() {
 
         edtNombre.setText(carta.nombreDetectado)
 
-        val numeroSinSigla = carta.numeroColeccionista?.substringAfter("-") ?: ""
+        val numeroSinSigla = carta.numeroColeccionista?.substringAfter("-")?: ""
         edtNumero.setText(numeroSinSigla)
 
         val adapterSpinner = ArrayAdapter(
@@ -358,15 +323,15 @@ class ColeccionActivity : AppCompatActivity() {
         spinner.adapter = adapterSpinner
 
         val indexEdicion = listaEdiciones.indexOfFirst { it.nombre == carta.edicionSeleccionada }
-        if (indexEdicion != -1) spinner.setSelection(indexEdicion)
+        if (indexEdicion!= -1) spinner.setSelection(indexEdicion)
 
         AlertDialog.Builder(this)
-            .setTitle("Editar Carta")
-            .setView(dialogView)
-            .setPositiveButton("GUARDAR") { _, _ ->
+          .setTitle("Editar Carta")
+          .setView(dialogView)
+          .setPositiveButton("GUARDAR") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinner.selectedItemPosition]
                 val numero = edtNumero.text.toString().ifEmpty { null }
-                val numeroCompleto = if (numero != null) "${edicionSeleccionada.sigla}-$numero" else null
+                val numeroCompleto = if (numero!= null) "${edicionSeleccionada.sigla}-$numero" else null
 
                 val nuevaCarta = carta.copy(
                     nombreDetectado = edtNombre.text.toString(),
@@ -378,40 +343,33 @@ class ColeccionActivity : AppCompatActivity() {
                 }
                 Toast.makeText(this, "Carta actualizada", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+          .setNegativeButton("CANCELAR", null)
+          .show()
     }
 
     private fun confirmarEliminar(carta: CardEntity) {
         AlertDialog.Builder(this)
-            .setTitle("Eliminar Carta")
-            .setMessage("¿Borrar ${carta.nombreDetectado} de tu colección?")
-            .setPositiveButton("ELIMINAR") { _, _ ->
+          .setTitle("Eliminar Carta")
+          .setMessage("¿Borrar ${carta.nombreDetectado} de tu colección?")
+          .setPositiveButton("ELIMINAR") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     db.cardDao().delete(carta)
                 }
                 Toast.makeText(this, "Carta eliminada", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+          .setNegativeButton("CANCELAR", null)
+          .show()
     }
 
     private fun toggleColeccion(carta: CardEntity) {
         lifecycleScope.launch(Dispatchers.IO) {
-            db.cardDao().update(carta.copy(enColeccion = !carta.enColeccion))
+            db.cardDao().update(carta.copy(enColeccion =!carta.enColeccion))
         }
     }
 
     inner class CartasAdapter(
         private val onAction: (CardEntity, String) -> Unit
-    ) : RecyclerView.Adapter<CartasAdapter.ViewHolder>() {
-
-        private var lista = listOf<CardEntity>()
-
-        fun submitList(nuevaLista: List<CardEntity>) {
-            lista = nuevaLista
-            notifyDataSetChanged()
-        }
+    ) : ListAdapter<CardEntity, CartasAdapter.ViewHolder>(DiffCallback()) {
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val img: ImageView = view.findViewById(R.id.imgFoto)
@@ -423,18 +381,18 @@ class ColeccionActivity : AppCompatActivity() {
 
             init {
                 view.setOnLongClickListener {
-                    val carta = lista[adapterPosition]
+                    val carta = getItem(adapterPosition)
                     AlertDialog.Builder(itemView.context)
-                        .setTitle(carta.nombreDetectado)
-                        .setItems(arrayOf("Editar", "Eliminar")) { _, which ->
+                      .setTitle(carta.nombreDetectado)
+                      .setItems(arrayOf("Editar", "Eliminar")) { _, which ->
                             if (which == 0) onAction(carta, "editar") else onAction(carta, "eliminar")
                         }
-                        .show()
+                      .show()
                     true
                 }
 
                 img.setOnClickListener {
-                    val carta = lista[adapterPosition]
+                    val carta = getItem(adapterPosition)
                     onAction(carta, "verImagen")
                 }
             }
@@ -442,17 +400,17 @@ class ColeccionActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_carta_coleccion, parent, false)
+              .inflate(R.layout.item_carta_coleccion, parent, false)
             return ViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val carta = lista[position]
+            val carta = getItem(position)
             holder.nombre.text = carta.nombreDetectado
             holder.edicion.text = "Edición: ${carta.edicionSeleccionada}"
-            holder.numero.text = "N°: ${carta.numeroColeccionista ?: "---"}"
+            holder.numero.text = "N°: ${carta.numeroColeccionista?: "---"}"
             holder.fecha.text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-                .format(Date(carta.fechaRegistro))
+              .format(Date(carta.fechaRegistro))
 
             holder.switch.setOnCheckedChangeListener(null)
             holder.switch.isChecked = carta.enColeccion
@@ -460,11 +418,19 @@ class ColeccionActivity : AppCompatActivity() {
             holder.switch.setOnCheckedChangeListener { _, _ -> onAction(carta, "toggle") }
 
             Glide.with(holder.itemView.context)
-                .load(carta.fotoUri)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .into(holder.img)
+              .load(carta.fotoUri)
+              .placeholder(android.R.drawable.ic_menu_gallery)
+              .into(holder.img)
+        }
+    }
+
+    class DiffCallback : DiffUtil.ItemCallback<CardEntity>() {
+        override fun areItemsTheSame(oldItem: CardEntity, newItem: CardEntity): Boolean {
+            return oldItem.id == newItem.id
         }
 
-        override fun getItemCount() = lista.size
+        override fun areContentsTheSame(oldItem: CardEntity, newItem: CardEntity): Boolean {
+            return oldItem == newItem
+        }
     }
 }
