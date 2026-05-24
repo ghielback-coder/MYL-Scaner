@@ -5,21 +5,21 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CardDao {
-    @Query("SELECT * FROM cartas ORDER BY fechaRegistro DESC")
+    @Query("SELECT * FROM CardEntity ORDER BY fechaRegistro DESC")
     fun getAll(): Flow<List<CardEntity>>
 
-    @Query("SELECT * FROM cartas WHERE nombreDetectado LIKE '%' || :search || '%' OR edicionSeleccionada LIKE '%' || :search || '%' OR numeroColeccionista LIKE '%' || :search || '%' ORDER BY fechaRegistro DESC")
+    @Query("SELECT * FROM CardEntity WHERE nombreDetectado LIKE '%' || :search || '%' OR edicionSeleccionada LIKE '%' || :search || '%' OR numeroColeccionista LIKE '%' || :search || '%'")
     fun search(search: String): Flow<List<CardEntity>>
 
+    @Query("SELECT * FROM CardEntity WHERE fotoUri = :uri LIMIT 1")
+    suspend fun getByUri(uri: String): CardEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(carta: CardEntity)
+    suspend fun insert(card: CardEntity)
 
     @Update
-    suspend fun update(carta: CardEntity)
+    suspend fun update(card: CardEntity)
 
     @Delete
-    suspend fun delete(carta: CardEntity)
-
-    @Query("SELECT * FROM cards WHERE fotoUri = :uri LIMIT 1")
-    suspend fun getByUri(uri: String): CardEntity?
+    suspend fun delete(card: CardEntity)
 }
