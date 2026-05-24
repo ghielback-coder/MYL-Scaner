@@ -11,6 +11,9 @@ interface EdicionDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(edicion: EdicionEntity)
 
+    @Update
+    suspend fun update(edicion: EdicionEntity) // ← ESTE ES EL "AGREGAR UPDATE"
+
     @Delete
     suspend fun delete(edicion: EdicionEntity)
 }
