@@ -50,7 +50,7 @@ class ScannerActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val uri = result.data?.data
-            if (uri != null) {
+            if (uri!= null) {
                 reconocerTextoDeUri(uri)
             }
         }
@@ -68,7 +68,6 @@ class ScannerActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnCapturar).setOnClickListener { capturarFoto() }
         findViewById<Button>(R.id.btnSubirFoto).setOnClickListener { subirFotoGaleria() }
 
-        // Cargar ediciones desde BD
         val db = AppDatabase.getDatabase(this)
         lifecycleScope.launch {
             db.edicionDao().getAll().collectLatest { ediciones ->
@@ -91,38 +90,69 @@ class ScannerActivity : AppCompatActivity() {
     }
 
     private fun reconocerTextoDeUri(uri: Uri) {
-        val image = InputImage.fromFilePath(this, uri)
+        // FIX BUILD #86: Copiamos la imagen a almacenamiento permanente
+        val uriPersistente = copiarImagenAGaleriaApp(uri)
+
+        val image = InputImage.fromFilePath(this, uriPersistente)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val imageWidth = visionText.textBlocks.maxOfOrNull { it.boundingBox?.right ?: 0 } ?: 1000
+           .addOnSuccessListener { visionText ->
+                val imageWidth = visionText.textBlocks.maxOfOrNull { it.boundingBox?.right?: 0 }?: 1000
                 val leftZoneLimit = (imageWidth * 0.4).toInt()
 
                 val nameBlocks = visionText.textBlocks
-                    .filter { block ->
-                        val box = block.boundingBox ?: return@filter false
+                   .filter { block ->
+                        val box = block.boundingBox?: return@filter false
                         box.left < leftZoneLimit && box.right < leftZoneLimit
                     }
-                    .flatMap { it.lines }
-                    .map { it.text.trim() }
-                    .filter { it.length > 2 && !it.contains(" ") && it.any { c -> c.isLetter() } }
+                   .flatMap { it.lines }
+                   .map { it.text.trim() }
+                   .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
 
-                val detectedName = nameBlocks.maxByOrNull { it.length } ?: ""
+                val detectedName = nameBlocks.maxByOrNull { it.length }?: ""
 
                 if (detectedName.isNotEmpty()) {
                     currentDetectedName = detectedName
                     resultText.text = detectedName
                     Toast.makeText(this, "Detectado: $detectedName", Toast.LENGTH_SHORT).show()
-                    mostrarDialogoGuardar(detectedName, uri.toString())
+                    mostrarDialogoGuardar(detectedName, uriPersistente.toString())
                 } else {
-                    mostrarDialogoGuardarManual(uri.toString())
+                    mostrarDialogoGuardarManual(uriPersistente.toString())
                 }
             }
-            .addOnFailureListener {
+           .addOnFailureListener {
                 Toast.makeText(this, "Error al procesar imagen", Toast.LENGTH_SHORT).show()
-                mostrarDialogoGuardarManual(uri.toString())
+                mostrarDialogoGuardarManual(uriPersistente.toString())
             }
+    }
+
+    private fun copiarImagenAGaleriaApp(uriOriginal: Uri): Uri {
+        val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "MyL_Galeria_$name")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/MyLScanner")
+            }
+        }
+
+        val uriDestino = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+        if (uriDestino!= null) {
+            try {
+                contentResolver.openInputStream(uriOriginal)?.use { input ->
+                    contentResolver.openOutputStream(uriDestino)?.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                return uriDestino
+            } catch (e: Exception) {
+                Log.e("MYL", "Error copiando imagen", e)
+                return uriOriginal
+            }
+        }
+        return uriOriginal
     }
 
     private fun startCamera() {
@@ -136,40 +166,40 @@ class ScannerActivity : AppCompatActivity() {
     private fun bindCameraUseCases() {
         val preview = Preview.Builder().build()
         val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-            .build()
+           .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+           .build()
 
         preview.setSurfaceProvider(previewView.surfaceProvider)
 
         imageCapture = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
+           .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+           .build()
 
         val imageAnalysis = ImageAnalysis.Builder()
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
+           .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+           .build()
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
             val mediaImage = imageProxy.image
-            if (mediaImage != null) {
+            if (mediaImage!= null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 recognizer.process(image)
-                    .addOnSuccessListener { visionText ->
+                   .addOnSuccessListener { visionText ->
                         val imageWidth = mediaImage.width
                         val leftZoneLimit = imageWidth * 0.4
 
                         val nameBlocks = visionText.textBlocks
-                            .filter { block ->
-                                val box = block.boundingBox ?: return@filter false
+                           .filter { block ->
+                                val box = block.boundingBox?: return@filter false
                                 box.left < leftZoneLimit && box.right < leftZoneLimit
                             }
-                            .flatMap { it.lines }
-                            .map { it.text.trim() }
-                            .filter { it.length > 2 }
+                           .flatMap { it.lines }
+                           .map { it.text.trim() }
+                           .filter { it.length > 2 }
 
-                        val detectedName = nameBlocks.maxByOrNull { it.length } ?: ""
+                        val detectedName = nameBlocks.maxByOrNull { it.length }?: ""
 
                         if (detectedName.isNotEmpty()) {
                             currentDetectedName = detectedName
@@ -178,7 +208,7 @@ class ScannerActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    .addOnCompleteListener {
+                   .addOnCompleteListener {
                         imageProxy.close()
                     }
             } else {
@@ -206,7 +236,7 @@ class ScannerActivity : AppCompatActivity() {
         vibrator.vibrate(100)
 
         val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-            .format(System.currentTimeMillis())
+           .format(System.currentTimeMillis())
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "MyL_$name")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -240,7 +270,7 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
         if (listaEdiciones.isEmpty()) {
-            Toast.makeText(this, "Primero agrega ediciones en Colección", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Primero agrega ediciones en Colección con el botón +", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -265,12 +295,12 @@ class ScannerActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Guardar: $nombreDetectado")
-            .setView(dialogView)
-            .setPositiveButton("GUARDAR") { _, _ ->
+           .setTitle("Guardar: $nombreDetectado")
+           .setView(dialogView)
+           .setPositiveButton("GUARDAR") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
                 val numero = edtNumero.text.toString().ifEmpty { null }
-                val numeroCompleto = if (numero != null) "${edicionSeleccionada.sigla}-$numero" else null
+                val numeroCompleto = if (numero!= null) "${edicionSeleccionada.sigla}-$numero" else null
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     val db = AppDatabase.getDatabase(this@ScannerActivity)
@@ -289,19 +319,19 @@ class ScannerActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+           .setNegativeButton("CANCELAR", null)
+           .show()
     }
 
     private fun mostrarDialogoGuardarManual(uriFoto: String) {
         val input = EditText(this)
         input.hint = "Escribe el nombre de la carta"
-        
+
         AlertDialog.Builder(this)
-            .setTitle("No detecté el nombre")
-            .setMessage("Escribe el nombre manualmente:")
-            .setView(input)
-            .setPositiveButton("SIGUIENTE") { _, _ ->
+           .setTitle("No detecté el nombre")
+           .setMessage("Escribe el nombre manualmente:")
+           .setView(input)
+           .setPositiveButton("SIGUIENTE") { _, _ ->
                 val nombreManual = input.text.toString()
                 if (nombreManual.isNotEmpty()) {
                     mostrarDialogoGuardar(nombreManual, uriFoto)
@@ -309,8 +339,8 @@ class ScannerActivity : AppCompatActivity() {
                     Toast.makeText(this, "Debes escribir un nombre", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("CANCELAR", null)
-            .show()
+           .setNegativeButton("CANCELAR", null)
+           .show()
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
