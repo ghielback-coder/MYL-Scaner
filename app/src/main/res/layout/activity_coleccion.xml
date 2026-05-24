@@ -30,7 +30,14 @@
             android:textSize="20sp"
             android:padding="16dp"
             android:textStyle="bold" />
-
+           <Button
+    android:id="@+id/btnImportarCarpeta"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:text="IMPORTAR DESDE CARPETA"
+    android:textColor="@android:color/white"
+    android:backgroundTint="#FF6F00" />
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerColeccion"
             android:layout_width="match_parent"
