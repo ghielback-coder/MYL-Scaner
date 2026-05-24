@@ -101,7 +101,7 @@ class ColeccionActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnVolver).setOnClickListener { finish() }
         findViewById<Button>(R.id.btnEscanearPendientes).setOnClickListener { escanearCarpetaPendientes() }
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAgregarEdicion)
-         .setOnClickListener { mostrarDialogoNuevaEdicion() }
+        .setOnClickListener { mostrarDialogoNuevaEdicion() }
 
         lifecycleScope.launch {
             db.edicionDao().getAll().collectLatest { ediciones ->
@@ -133,10 +133,8 @@ class ColeccionActivity : AppCompatActivity() {
                 searchJob = lifecycleScope.launch {
                     delay(300)
                     queryActual = s.toString()
-                    lifecycleScope.launch {
-                        val lista = db.cardDao().getAllSync()
-                        aplicarFiltros(lista)
-                    }
+                    val lista = db.cardDao().getAllSync()
+                    aplicarFiltros(lista)
                 }
             }
         })
@@ -245,9 +243,9 @@ class ColeccionActivity : AppCompatActivity() {
 
     private fun confirmarEliminarMultiple() {
         AlertDialog.Builder(this)
-         .setTitle("Eliminar ${seleccionadas.size} cartas")
-         .setMessage("¿Borrar estas cartas de tu colección?\n\nLas fotos también se eliminarán.")
-         .setPositiveButton("ELIMINAR") { _, _ ->
+        .setTitle("Eliminar ${seleccionadas.size} cartas")
+        .setMessage("¿Borrar estas cartas de tu colección?\n\nLas fotos también se eliminarán.")
+        .setPositiveButton("ELIMINAR") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     seleccionadas.forEach { carta ->
                         try {
@@ -263,15 +261,15 @@ class ColeccionActivity : AppCompatActivity() {
                     }
                 }
             }
-         .setNegativeButton("CANCELAR", null)
-         .show()
+        .setNegativeButton("CANCELAR", null)
+        .show()
     }
 
     private fun mostrarDialogoMoverEdicion() {
         val ediciones = listaEdiciones.map { "${it.sigla} - ${it.nombre}" }.toTypedArray()
         AlertDialog.Builder(this)
-         .setTitle("Mover a edición")
-         .setItems(ediciones) { _, which ->
+        .setTitle("Mover a edición")
+        .setItems(ediciones) { _, which ->
                 val edicionSeleccionada = listaEdiciones[which]
                 lifecycleScope.launch(Dispatchers.IO) {
                     seleccionadas.forEach { carta ->
@@ -283,8 +281,8 @@ class ColeccionActivity : AppCompatActivity() {
                     }
                 }
             }
-         .setNegativeButton("CANCELAR", null)
-         .show()
+        .setNegativeButton("CANCELAR", null)
+        .show()
     }
 
     private fun marcarSeleccionadas(tengo: Boolean) {
@@ -309,10 +307,10 @@ class ColeccionActivity : AppCompatActivity() {
 
         if (imagenes.isEmpty()) {
             AlertDialog.Builder(this)
-             .setTitle("Carpeta vacía")
-             .setMessage("No hay fotos en:\n\n${carpetaPendientes.absolutePath}\n\nMete las fotos ahí con cualquier explorador de archivos y vuelve a escanear.")
-             .setPositiveButton("OK", null)
-             .show()
+            .setTitle("Carpeta vacía")
+            .setMessage("No hay fotos en:\n\n${carpetaPendientes.absolutePath}\n\nMete las fotos ahí con cualquier explorador de archivos y vuelve a escanear.")
+            .setPositiveButton("OK", null)
+            .show()
             return
         }
 
@@ -329,7 +327,6 @@ class ColeccionActivity : AppCompatActivity() {
         val cursor: Cursor? = contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
             selectionArgs,
             sortOrder
         )
@@ -368,16 +365,16 @@ class ColeccionActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-         .setTitle("Importar ${imagenes.size} cartas")
-         .setMessage("Las fotos se copiarán a carpeta privada invisible.\nEl nombre se detectará automático.")
-         .setView(dialogView)
-         .setPositiveButton("IMPORTAR") { _, _ ->
+        .setTitle("Importar ${imagenes.size} cartas")
+        .setMessage("Las fotos se copiarán a carpeta privada invisible.\nEl nombre se detectará automático.")
+        .setView(dialogView)
+        .setPositiveButton("IMPORTAR") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
                 val numeroInicial = edtNumero.text.toString().toIntOrNull()
                 importarYMover(imagenes, edicionSeleccionada, numeroInicial)
             }
-         .setNegativeButton("CANCELAR", null)
-         .show()
+        .setNegativeButton("CANCELAR", null)
+        .show()
     }
 
     private fun importarYMover(imagenes: List<Uri>, edicion: EdicionEntity, numeroInicial: Int?) {
@@ -416,14 +413,14 @@ class ColeccionActivity : AppCompatActivity() {
                     val leftZoneLimit = (imageWidth * 0.4).toInt()
 
                     val nombre = visionText.textBlocks
-                     .filter { block ->
+                    .filter { block ->
                             val box = block.boundingBox
                             if (box == null) false else box.left < leftZoneLimit && box.right < leftZoneLimit
                         }
-                     .flatMap { it.lines }
-                     .map { it.text.trim() }
-                     .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
-                     .maxByOrNull { it.length }?: "SinNombre_$procesadas"
+                    .flatMap { it.lines }
+                    .map { it.text.trim() }
+                    .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
+                    .maxByOrNull { it.length }?: "SinNombre_$procesadas"
 
                     val numeroCompleto = if (numeroActual!= null) "${edicion.sigla}-$numeroActual" else null
                     if (numeroActual!= null) numeroActual++
@@ -483,9 +480,11 @@ class ColeccionActivity : AppCompatActivity() {
         val edtSigla = dialogView.findViewById<EditText>(R.id.edtSiglaEdicion)
 
         AlertDialog.Builder(this)
-         .setTitle("Agregar Edición")
-         .setView(dialogView)
-         .setPositiveButton("AGREGAR") { _, _ ->
+        .setTitle("Agregar Edición")
+        .setView(dialogView)
+        .setPositiveButton("AGREGAR") { _, _ ->
                 val nombre = edtNombre.text.toString()
                 val sigla = edtSigla.text.toString().uppercase()
-                if (nombre.isNotEmpty() && sigla.i
+                if (nombre.isNotEmpty() && sigla.isNotEmpty()) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        db.edicionDao().insert(Edi
