@@ -203,6 +203,7 @@ class ColeccionActivity : AppCompatActivity() {
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         var contador = 0
+        var fallidas = 0
         var numeroActual = numeroInicial
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -211,9 +212,22 @@ class ColeccionActivity : AppCompatActivity() {
             for (uri in imagenes) {
                 try {
                     val archivoOriginal = File(uri.path!!)
+                    if (!archivoOriginal.exists()) {
+                        fallidas++
+                        Log.e("MYL", "Archivo no existe: $uri")
+                        continue
+                    }
+
                     val nuevoNombre = "MyL_${System.currentTimeMillis()}_${contador}.jpg"
                     val archivoDestino = File(carpetaPrivada, nuevoNombre)
-                    archivoOriginal.renameTo(archivoDestino)
+                    val movido = archivoOriginal.renameTo(archivoDestino)
+                    
+                    if (!movido) {
+                        fallidas++
+                        Log.e("MYL", "No se pudo mover: $uri")
+                        continue
+                    }
+
                     val uriNueva = Uri.fromFile(archivoDestino)
 
                     val image = InputImage.fromFilePath(this@ColeccionActivity, uriNueva)
@@ -235,7 +249,7 @@ class ColeccionActivity : AppCompatActivity() {
                     val numeroCompleto = if (numeroActual != null) "${edicion.sigla}-$numeroActual" else null
                     if (numeroActual != null) numeroActual++
 
-                    db.cardDao().insert(
+                    val id = db.cardDao().insert(
                         CardEntity(
                             nombreDetectado = nombre,
                             fotoUri = uriNueva.toString(),
@@ -244,7 +258,11 @@ class ColeccionActivity : AppCompatActivity() {
                             enColeccion = true
                         )
                     )
+                    
+                    Log.d("MYL", "Insertada carta ID: $id - Nombre: $nombre")
+
                 } catch (e: Exception) {
+                    fallidas++
                     Log.e("MYL", "Error procesando imagen $uri", e)
                 }
 
@@ -256,11 +274,12 @@ class ColeccionActivity : AppCompatActivity() {
 
             withContext(Dispatchers.Main) {
                 dialogProgreso.dismiss()
-                Toast.makeText(
-                    this@ColeccionActivity,
-                    "Importadas: $contador cartas\nMovidas a carpeta privada",
-                    Toast.LENGTH_LONG
-                ).show()
+                val mensaje = if (fallidas > 0) {
+                    "Importadas: ${contador - fallidas}\nFallidas: $fallidas\nRevisa Logcat tag MYL"
+                } else {
+                    "Importadas: $contador cartas\nMovidas a carpeta privada"
+                }
+                Toast.makeText(this@ColeccionActivity, mensaje, Toast.LENGTH_LONG).show()
             }
         }
     }
