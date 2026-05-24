@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="24dp"
+    android:padding="32dp"
     android:background="#121212">
 
     <TextView
@@ -12,40 +12,30 @@
         android:layout_height="wrap_content"
         android:text="MYL SCANNER"
         android:textSize="32sp"
-        android:textColor="#FFFFFF"
         android:textStyle="bold"
+        android:textColor="#FFFFFF"
         android:layout_marginBottom="32dp" />
 
     <TextView
-        android:id="@+id/txtCartasCargadas"
+        android:id="@+id/txtStats"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Base: 0 cartas | Colección: 0"
+        android:text="Tengo: 0 | Faltan: 0 | Total: 0"
+        android:textSize="18sp"
         android:textColor="#AAAAAA"
-        android:textSize="16sp"
-        android:layout_marginBottom="48dp" />
+        android:layout_marginBottom="32dp" />
 
     <Button
         android:id="@+id/btnEscanear"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="ESCANEAR CARTAS"
-        android:textSize="18sp"
         android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/btnColeccion"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="MI COLECCIÓN"
-        android:textSize="18sp"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/btnExportar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="EXPORTAR"
-        android:textSize="18sp" />
+        android:text="MI COLECCIÓN" />
 
 </LinearLayout>
