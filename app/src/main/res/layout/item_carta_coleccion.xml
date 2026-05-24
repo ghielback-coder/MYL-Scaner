@@ -1,86 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardView"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardBackgroundColor="#1E1E1E"
-    app:cardCornerRadius="8dp">
+    android:layout_margin="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp">
+        android:padding="8dp">
+
+        <CheckBox
+            android:id="@+id/checkboxSeleccion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/imgFoto"
             android:layout_width="80dp"
-            android:layout_height="110dp"
+            android:layout_height="112dp"
+            android:layout_below="@id/checkboxSeleccion"
+            android:layout_centerHorizontal="true"
             android:scaleType="centerCrop"
-            android:background="#333333" />
+            android:src="@android:drawable/ic_menu_gallery" />
 
-        <LinearLayout
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/txtNombre"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:layout_below="@id/imgFoto"
+            android:layout_marginTop="4dp"
+            android:text="Nombre"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="14sp" />
 
-            <TextView
-                android:id="@+id/txtNombre"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Nombre Carta"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+        <TextView
+            android:id="@+id/txtEdicion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/txtNombre"
+            android:text="Edición: ---"
+            android:textSize="12sp" />
 
-            <TextView
-                android:id="@+id/txtEdicion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Edición: Sin asignar"
-                android:textColor="#AAAAAA"
-                android:textSize="14sp"
-                android:layout_marginTop="4dp" />
+        <TextView
+            android:id="@+id/txtNumero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/txtEdicion"
+            android:text="N°: ---"
+            android:textColor="@android:color/holo_purple"
+            android:textSize="12sp" />
 
-            <TextView
-                android:id="@+id/txtNumero"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="N°: ---"
-                android:textColor="#FF6200EE"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:layout_marginTop="4dp" />
+        <TextView
+            android:id="@+id/txtFecha"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/txtNumero"
+            android:text="01/01/2024"
+            android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/txtFecha"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="23/05/2026 21:13"
-                android:textColor="#666666"
-                android:textSize="12sp"
-                android:layout_marginTop="8dp" />
-
-        </LinearLayout>
-
-        <LinearLayout
+        <Switch
+            android:id="@+id/switchColeccion"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:layout_below="@id/txtFecha"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="4dp"
+            android:text="Tengo"
+            android:textSize="12sp" />
 
-            <Switch
-                android:id="@+id/switchColeccion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Tengo"
-                android:textColor="#FFFFFF" />
-
-        </LinearLayout>
-
-    </LinearLayout>
-
+    </RelativeLayout>
 </androidx.cardview.widget.CardView>
