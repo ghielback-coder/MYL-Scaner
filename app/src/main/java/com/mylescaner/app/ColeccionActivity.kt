@@ -101,7 +101,7 @@ class ColeccionActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnVolver).setOnClickListener { finish() }
         findViewById<Button>(R.id.btnEscanearPendientes).setOnClickListener { escanearCarpetaPendientes() }
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAgregarEdicion)
-          .setOnClickListener { mostrarDialogoNuevaEdicion() }
+         .setOnClickListener { mostrarDialogoNuevaEdicion() }
 
         lifecycleScope.launch {
             db.edicionDao().getAll().collectLatest { ediciones ->
@@ -243,9 +243,9 @@ class ColeccionActivity : AppCompatActivity() {
 
     private fun confirmarEliminarMultiple() {
         AlertDialog.Builder(this)
-          .setTitle("Eliminar ${seleccionadas.size} cartas")
-          .setMessage("¿Borrar estas cartas de tu colección?\n\nLas fotos también se eliminarán.")
-          .setPositiveButton("ELIMINAR") { _, _ ->
+         .setTitle("Eliminar ${seleccionadas.size} cartas")
+         .setMessage("¿Borrar estas cartas de tu colección?\n\nLas fotos también se eliminarán.")
+         .setPositiveButton("ELIMINAR") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     seleccionadas.forEach { carta ->
                         try {
@@ -261,15 +261,15 @@ class ColeccionActivity : AppCompatActivity() {
                     }
                 }
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun mostrarDialogoMoverEdicion() {
         val ediciones = listaEdiciones.map { "${it.sigla} - ${it.nombre}" }.toTypedArray()
         AlertDialog.Builder(this)
-          .setTitle("Mover a edición")
-          .setItems(ediciones) { _, which ->
+         .setTitle("Mover a edición")
+         .setItems(ediciones) { _, which ->
                 val edicionSeleccionada = listaEdiciones[which]
                 lifecycleScope.launch(Dispatchers.IO) {
                     seleccionadas.forEach { carta ->
@@ -281,8 +281,8 @@ class ColeccionActivity : AppCompatActivity() {
                     }
                 }
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun marcarSeleccionadas(tengo: Boolean) {
@@ -307,10 +307,10 @@ class ColeccionActivity : AppCompatActivity() {
 
         if (imagenes.isEmpty()) {
             AlertDialog.Builder(this)
-              .setTitle("Carpeta vacía")
-              .setMessage("No hay fotos en:\n\n${carpetaPendientes.absolutePath}\n\nMete las fotos ahí con cualquier explorador de archivos y vuelve a escanear.")
-              .setPositiveButton("OK", null)
-              .show()
+             .setTitle("Carpeta vacía")
+             .setMessage("No hay fotos en:\n\n${carpetaPendientes.absolutePath}\n\nMete las fotos ahí con cualquier explorador de archivos y vuelve a escanear.")
+             .setPositiveButton("OK", null)
+             .show()
             return
         }
 
@@ -366,16 +366,16 @@ class ColeccionActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-          .setTitle("Importar ${imagenes.size} cartas")
-          .setMessage("Las fotos se copiarán a carpeta privada invisible.\nEl nombre se detectará automático.")
-          .setView(dialogView)
-          .setPositiveButton("IMPORTAR") { _, _ ->
+         .setTitle("Importar ${imagenes.size} cartas")
+         .setMessage("Las fotos se copiarán a carpeta privada invisible.\nEl nombre se detectará automático.")
+         .setView(dialogView)
+         .setPositiveButton("IMPORTAR") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
                 val numeroInicial = edtNumero.text.toString().toIntOrNull()
                 importarYMover(imagenes, edicionSeleccionada, numeroInicial)
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun importarYMover(imagenes: List<Uri>, edicion: EdicionEntity, numeroInicial: Int?) {
@@ -414,14 +414,14 @@ class ColeccionActivity : AppCompatActivity() {
                     val leftZoneLimit = (imageWidth * 0.4).toInt()
 
                     val nombre = visionText.textBlocks
-                      .filter { block ->
+                     .filter { block ->
                             val box = block.boundingBox
                             if (box == null) false else box.left < leftZoneLimit && box.right < leftZoneLimit
                         }
-                      .flatMap { it.lines }
-                      .map { it.text.trim() }
-                      .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
-                      .maxByOrNull { it.length }?: "SinNombre_$procesadas"
+                     .flatMap { it.lines }
+                     .map { it.text.trim() }
+                     .filter { it.length > 2 &&!it.contains(" ") && it.any { c -> c.isLetter() } }
+                     .maxByOrNull { it.length }?: "SinNombre_$procesadas"
 
                     val numeroCompleto = if (numeroActual!= null) "${edicion.sigla}-$numeroActual" else null
                     if (numeroActual!= null) numeroActual++
@@ -481,9 +481,9 @@ class ColeccionActivity : AppCompatActivity() {
         val edtSigla = dialogView.findViewById<EditText>(R.id.edtSiglaEdicion)
 
         AlertDialog.Builder(this)
-          .setTitle("Agregar Edición")
-          .setView(dialogView)
-          .setPositiveButton("AGREGAR") { _, _ ->
+         .setTitle("Agregar Edición")
+         .setView(dialogView)
+         .setPositiveButton("AGREGAR") { _, _ ->
                 val nombre = edtNombre.text.toString()
                 val sigla = edtSigla.text.toString().uppercase()
                 if (nombre.isNotEmpty() && sigla.isNotEmpty()) {
@@ -495,8 +495,8 @@ class ColeccionActivity : AppCompatActivity() {
                     Toast.makeText(this, "Completa nombre y sigla", Toast.LENGTH_SHORT).show()
                 }
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun mostrarDialogoEditar(carta: CardEntity) {
@@ -522,9 +522,9 @@ class ColeccionActivity : AppCompatActivity() {
         if (indexEdicion!= -1) spinner.setSelection(indexEdicion)
 
         AlertDialog.Builder(this)
-          .setTitle("Editar Carta")
-          .setView(dialogView)
-          .setPositiveButton("GUARDAR") { _, _ ->
+         .setTitle("Editar Carta")
+         .setView(dialogView)
+         .setPositiveButton("GUARDAR") { _, _ ->
                 val edicionSeleccionada = listaEdiciones[spinner.selectedItemPosition]
                 val numero = edtNumero.text.toString().ifEmpty { null }
                 val numeroCompleto = if (numero!= null) "${edicionSeleccionada.sigla}-$numero" else null
@@ -539,15 +539,15 @@ class ColeccionActivity : AppCompatActivity() {
                 }
                 Toast.makeText(this, "Carta actualizada", Toast.LENGTH_SHORT).show()
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun confirmarEliminar(carta: CardEntity) {
         AlertDialog.Builder(this)
-          .setTitle("Eliminar Carta")
-          .setMessage("¿Borrar ${carta.nombreDetectado} de tu colección?\n\nLa foto también se eliminará.")
-          .setPositiveButton("ELIMINAR") { _, _ ->
+         .setTitle("Eliminar Carta")
+         .setMessage("¿Borrar ${carta.nombreDetectado} de tu colección?\n\nLa foto también se eliminará.")
+         .setPositiveButton("ELIMINAR") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         File(Uri.parse(carta.fotoUri).path!!).delete()
@@ -558,8 +558,8 @@ class ColeccionActivity : AppCompatActivity() {
                 }
                 Toast.makeText(this, "Carta eliminada", Toast.LENGTH_SHORT).show()
             }
-          .setNegativeButton("CANCELAR", null)
-          .show()
+         .setNegativeButton("CANCELAR", null)
+         .show()
     }
 
     private fun toggleColeccion(carta: CardEntity) {
@@ -581,7 +581,7 @@ class ColeccionActivity : AppCompatActivity() {
             val fecha: TextView = view.findViewById(R.id.txtFecha)
             val switch: Switch = view.findViewById(R.id.switchColeccion)
             val checkbox: CheckBox = view.findViewById(R.id.checkboxSeleccion)
-            val cardView: androidx.cardview.widget.CardView = view.findViewById(R.id.cardView)
+            val cardView: com.google.android.material.card.MaterialCardView = view.findViewById(R.id.cardView)
 
             init {
                 view.setOnLongClickListener {
@@ -604,7 +604,7 @@ class ColeccionActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context)
-              .inflate(R.layout.item_carta_coleccion, parent, false)
+             .inflate(R.layout.item_carta_coleccion, parent, false)
             return ViewHolder(view)
         }
 
@@ -617,7 +617,7 @@ class ColeccionActivity : AppCompatActivity() {
             holder.edicion.text = "Edición: ${carta.edicionSeleccionada}"
             holder.numero.text = "N°: ${carta.numeroColeccionista?: "---"}"
             holder.fecha.text = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-              .format(Date(carta.fechaRegistro))
+             .format(Date(carta.fechaRegistro))
 
             holder.switch.setOnCheckedChangeListener(null)
             holder.switch.isChecked = carta.enColeccion
@@ -630,9 +630,9 @@ class ColeccionActivity : AppCompatActivity() {
             holder.cardView.strokeColor = if (estaSeleccionada) 0xFF6200EE.toInt() else 0x00000000
 
             Glide.with(holder.itemView.context)
-              .load(carta.fotoUri)
-              .placeholder(android.R.drawable.ic_menu_gallery)
-              .into(holder.img)
+             .load(carta.fotoUri)
+             .placeholder(android.R.drawable.ic_menu_gallery)
+             .into(holder.img)
         }
     }
 
