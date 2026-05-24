@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_eliminar"
+        android:title="Eliminar"
+        android:icon="@android:drawable/ic_menu_delete" />
+    <item
+        android:id="@+id/action_mover_edicion"
+        android:title="Mover edición"
+        android:icon="@android:drawable/ic_menu_edit" />
+    <item
+        android:id="@+id/action_marcar_tengo"
+        android:title="Marcar como Tengo"
+        android:icon="@android:drawable/ic_menu_add" />
+    <item
+        android:id="@+id/action_marcar_falta"
+        android:title="Marcar como Falta"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel" />
+</menu>
