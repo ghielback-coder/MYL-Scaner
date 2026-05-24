@@ -19,4 +19,7 @@ interface CardDao {
 
     @Delete
     suspend fun delete(carta: CardEntity)
+
+    @Query("SELECT * FROM cards WHERE fotoUri = :uri LIMIT 1")
+    suspend fun getByUri(uri: String): CardEntity?
 }
