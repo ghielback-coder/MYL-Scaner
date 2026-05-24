@@ -45,11 +45,26 @@ class ScannerActivity : AppCompatActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var currentDetectedName = ""
 
-    // NUEVO: Lista de ediciones. Cárgala desde tu CSV después
-    private val ediciones = listOf(
-        "Primer Bloque", "Espada Sagrada", "Helénica", "Hijos de Daana",
-        "Dominios de Ra", "Encrucijada", "Bestia", "Contraataque", "Águila Imperial"
-    )
+
+)
+
+// PEGA ESTO - LISTA COMPLETA MYL:
+private val ediciones = listOf(
+    "El Reto", "Mundo Gótico", "La Ira del Nahual", "Ragnarok", 
+    "La Cofradía", "Espíritu de Dragón", "Espada Sagrada", "Helénica",
+    "Hijos de Daana", "Dominios de Ra", "Encrucijada", "Guerrero Jaguar",
+    "Vendaval", "Barbarie", "Bestia", "Contraataque", "Águila Imperial",
+    "Steampunk", "Dharma", "Piratas", "Corsarios", "Inmortales", 
+    "Héroes", "Invasión Oscura", "Hordas", "Alianza", "Celtíbero",
+    "Legado Gótico", "Compendium", "Kilimanjaro", "Arsenal",
+    "Mechadas", "Expediciones", "Conquista", "Vikings",
+    "Valhalla", "Midgard", "Asgard", "Ragnarok 2.0", "Olimpia",
+    "Troya", "Relatos de Inframundo", "Exodo", "Concilium",
+    "Kemeth", "Calavera", "Extensión Compendium", "Primer Bloque",
+    "Segundo Bloque", "Tercer Bloque", "Crónicas", "Expansión",
+    "ToolKit", "Tesoros", "Otras"
+).sorted() // Las ordena alfabéticamente  
+    
 
     // NUEVO: Lanzador para elegir foto de galería
     private val pickImageLauncher = registerForActivityResult(
