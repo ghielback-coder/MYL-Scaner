@@ -4,7 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="@android:color/black">
+
+    <TextView
+        android:id="@+id/txtTitulo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="MYL Scanner"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="8dp" />
 
     <TextView
         android:id="@+id/txtTotal"
@@ -12,58 +23,69 @@
         android:layout_height="wrap_content"
         android:text="Total: 0 | Tengo: 0 | Faltan: 0"
         android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp"/>
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="8dp" />
 
     <EditText
         android:id="@+id/edtBuscar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Buscar por nombre, edición o número..."
-        android:inputType="text"
-        android:layout_marginBottom="8dp"/>
+        android:textColorHint="#808080"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@android:color/white"
+        android:layout_marginBottom="8dp" />
 
-    <!-- TEXTO QUE MUESTRA LA RUTA -->
     <TextView
         android:id="@+id/txtRutaPendientes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Carpeta: Pictures/MyLScanner/Pendientes"
+        android:text="Mete fotos en: /storage/emulated/0/Pictures/MyLScanner/Pendientes"
         android:textSize="12sp"
-        android:textColor="#888"
-        android:paddingBottom="4dp" />
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="8dp" />
 
-    <!-- BOTÓN NUEVO -->
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chipGroupEdiciones"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        app:singleSelection="true"
+        app:selectionRequired="false" />
+
     <Button
         android:id="@+id/btnEscanearPendientes"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
         android:text="ESCANEAR CARPETA PENDIENTES"
+        android:backgroundTint="#FF6600"
         android:textColor="@android:color/white"
-        android:backgroundTint="#FF6F00" />
+        android:layout_marginBottom="8dp" />
 
     <Button
         android:id="@+id/btnVolver"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="VOLVER"
-        android:layout_marginBottom="8dp"/>
+        android:backgroundTint="#6200EE"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="8dp" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerColeccion"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:padding="4dp" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAgregarEdicion"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end|bottom"
+        android:layout_margin="16dp"
         android:src="@android:drawable/ic_input_add"
-        android:contentDescription="Agregar Edición"
-        app:backgroundTint="#FF6F00"
-        app:tint="@android:color/white"/>
+        android:backgroundTint="#FF6600"
+        app:tint="@android:color/white" />
 
 </LinearLayout>
