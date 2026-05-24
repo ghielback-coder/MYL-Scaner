@@ -43,3 +43,9 @@
 
     <Button
         android:id="@+id/btnExportar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="EXPORTAR"
+        android:textSize="18sp" />
+
+</LinearLayout>
