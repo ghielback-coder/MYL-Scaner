@@ -44,9 +44,24 @@ class ColeccionActivity : AppCompatActivity() {
 
     // Carpeta donde TÚ metes las fotos - Visible en galería
     private val carpetaPendientes by lazy {
-        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "MyLScanner/Pendientes")
+        File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            "MyLScanner/Pendientes"
+        )
     }
 
     // Carpeta privada donde la app guarda las fotos - INVISIBLE para galería
     private val carpetaPrivada by lazy {
-        File
+        File(getExternalFilesDir(null), "MyLScanner/Cartas")
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_coleccion)
+
+        // Crear carpetas si no existen
+        if (!carpetaPendientes.exists()) carpetaPendientes.mkdirs()
+        if (!carpetaPrivada.exists()) carpetaPrivada.mkdirs()
+
+        // Crear .nomedia para que la galería ignore la carpeta privada
+        val nom
