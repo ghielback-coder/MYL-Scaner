@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [CardEntity::class], version = 2) // OJO: VERSION = 2
+@Database(entities = [CardEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cardDao(): CardDao
 
@@ -20,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "myl_database"
                 )
-                .fallbackToDestructiveMigration() // ESTO BORRA LA DB VIEJA
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
