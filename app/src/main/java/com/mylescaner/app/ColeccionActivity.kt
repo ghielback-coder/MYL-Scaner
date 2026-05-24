@@ -212,6 +212,11 @@ class ColeccionActivity : AppCompatActivity() {
             Glide.with(holder.itemView.context)
                .load(carta.fotoUri)
                .into(holder.img)
+               holder.img.setOnClickListener {
+    val intent = Intent(holder.itemView.context, VisorImagenActivity::class.java)
+    intent.putExtra("URI", carta.fotoUri)
+    holder.itemView.context.startActivity(intent)
+               }
         }
 
         override fun getItemCount() = lista.size
