@@ -314,7 +314,59 @@ class ScannerActivity : AppCompatActivity() {
                             edicionSeleccionada = edicionSeleccionada,
                             numeroColeccionista = numeroColeccionista
                         )
-                    )
+                    private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
+    val dialogView = layoutInflater.inflate(R.layout.dialog_guardar_carta, null)
+    val spinnerEdicion = dialogView.findViewById<Spinner>(R.id.spinnerEdicion)
+    val edtNumero = dialogView.findViewById<EditText>(R.id.edtNumero)
+    val txtSigla = dialogView.findViewById<TextView>(R.id.txtSigla)
+
+    lifecycleScope.launch {
+        val db = AppDatabase.getDatabase(this@ScannerActivity)
+        db.edicionDao().getAll().collectLatest { listaEdiciones ->
+
+            val adapter = ArrayAdapter(
+                this@ScannerActivity,
+                android.R.layout.simple_spinner_item,
+                listaEdiciones.map { "${it.sigla} - ${it.nombre}" }
+            )
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinnerEdicion.adapter = adapter
+
+            spinnerEdicion.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
+                    txtSigla.text = listaEdiciones[pos].sigla
+                }
+                override fun onNothingSelected(p0: AdapterView<*>?) {}
+            }
+
+            AlertDialog.Builder(this@ScannerActivity)
+              .setTitle("Guardar: $nombreDetectado")
+              .setView(dialogView)
+              .setPositiveButton("GUARDAR") { _, _ ->
+                    val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
+                    val numero = edtNumero.text.toString().ifEmpty { null }
+                    val numeroCompleto = if (numero!= null) "${edicionSeleccionada.sigla}-$numero" else null
+
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        db.cardDao().insert(
+                            CardEntity(
+                                nombreDetectado = nombreDetectado,
+                                fotoUri = uriFoto,
+                                edicionSeleccionada = edicionSeleccionada.nombre,
+                                numeroColeccionista = numeroCompleto
+                            )
+                        )
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@ScannerActivity, "Guardada", Toast.LENGTH_LONG).show()
+                            finish()
+                        }
+                    }
+                }
+              .setNegativeButton("CANCELAR", null)
+              .show()
+        }
+    }
+}
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
@@ -330,22 +382,60 @@ class ScannerActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun mostrarDialogoGuardarManual(uriFoto: String) {
-        val input = EditText(this)
-        input.hint = "Escribe el nombre de la carta"
-        
-        AlertDialog.Builder(this)
-            .setTitle("No detecté el nombre")
-            .setMessage("Escribe el nombre manualmente:")
-            .setView(input)
-            .setPositiveButton("SIGUIENTE") { _, _ ->
-                val nombreManual = input.text.toString()
-                if (nombreManual.isNotEmpty()) {
-                    mostrarDialogoGuardar(nombreManual, uriFoto)
-                } else {
-                    Toast.makeText(this, "Debes escribir un nombre", Toast.LENGTH_SHORT).show()
+private fun mostrarDialogoGuardar(nombreDetectado: String, uriFoto: String) {
+    val dialogView = layoutInflater.inflate(R.layout.dialog_guardar_carta, null)
+    val spinnerEdicion = dialogView.findViewById<Spinner>(R.id.spinnerEdicion)
+    val edtNumero = dialogView.findViewById<EditText>(R.id.edtNumero)
+    val txtSigla = dialogView.findViewById<TextView>(R.id.txtSigla)
+
+    lifecycleScope.launch {
+        val db = AppDatabase.getDatabase(this@ScannerActivity)
+        db.edicionDao().getAll().collectLatest { listaEdiciones ->
+
+            val adapter = ArrayAdapter(
+                this@ScannerActivity,
+                android.R.layout.simple_spinner_item,
+                listaEdiciones.map { "${it.sigla} - ${it.nombre}" }
+            )
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinnerEdicion.adapter = adapter
+
+            spinnerEdicion.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
+                    txtSigla.text = listaEdiciones[pos].sigla
                 }
+                override fun onNothingSelected(p0: AdapterView<*>?) {}
             }
+
+            AlertDialog.Builder(this@ScannerActivity)
+              .setTitle("Guardar: $nombreDetectado")
+              .setView(dialogView)
+              .setPositiveButton("GUARDAR") { _, _ ->
+                    val edicionSeleccionada = listaEdiciones[spinnerEdicion.selectedItemPosition]
+                    val numero = edtNumero.text.toString().ifEmpty { null }
+                    val numeroCompleto = if (numero!= null) "${edicionSeleccionada.sigla}-$numero" else null
+
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        db.cardDao().insert(
+                            CardEntity(
+                                nombreDetectado = nombreDetectado,
+                                fotoUri = uriFoto,
+                                edicionSeleccionada = edicionSeleccionada.nombre,
+                                numeroColeccionista = numeroCompleto
+                            )
+                        )
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@ScannerActivity, "Guardada", Toast.LENGTH_LONG).show()
+                            finish()
+                        }
+                    }
+                }
+              .setNegativeButton("CANCELAR", null)
+              .show()
+        }
+    }
+}
+            
             .setNegativeButton("CANCELAR", null)
             .show()
     }
