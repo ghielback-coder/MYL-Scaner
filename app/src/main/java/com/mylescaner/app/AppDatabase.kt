@@ -21,7 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "myl_scanner_db"
                 )
-                .fallbackToDestructiveMigration() // Borra y recrea la BD si cambia la versión
+                .fallbackToDestructiveMigration() // Borra BD si cambia versión
                 .build()
                 INSTANCE = instance
                 instance
