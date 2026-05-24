@@ -42,7 +42,6 @@ class ColeccionActivity : AppCompatActivity() {
     private var searchJob: Job? = null
     private var queryActual = ""
 
-    // Carpeta donde TÚ metes las fotos - Visible en galería
     private val carpetaPendientes by lazy {
         File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
@@ -50,7 +49,6 @@ class ColeccionActivity : AppCompatActivity() {
         )
     }
 
-    // Carpeta privada donde la app guarda las fotos - INVISIBLE para galería
     private val carpetaPrivada by lazy {
         File(getExternalFilesDir(null), "MyLScanner/Cartas")
     }
@@ -59,11 +57,9 @@ class ColeccionActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_coleccion)
 
-        // Crear carpetas si no existen
         if (!carpetaPendientes.exists()) carpetaPendientes.mkdirs()
         if (!carpetaPrivada.exists()) carpetaPrivada.mkdirs()
 
-        // Crear .nomedia para que la galería ignore la carpeta privada
         val nomedia = File(carpetaPrivada, ".nomedia")
         if (!nomedia.exists()) nomedia.createNewFile()
 
@@ -218,12 +214,9 @@ class ColeccionActivity : AppCompatActivity() {
             for (uri in imagenes) {
                 try {
                     val archivoOriginal = File(uri.path!!)
-                    
-                    // MOVER a carpeta privada + renombrar para evitar choques
                     val nuevoNombre = "MyL_${System.currentTimeMillis()}_${contador}.jpg"
                     val archivoDestino = File(carpetaPrivada, nuevoNombre)
                     archivoOriginal.renameTo(archivoDestino)
-                    
                     val uriNueva = Uri.fromFile(archivoDestino)
 
                     val image = InputImage.fromFilePath(this@ColeccionActivity, uriNueva)
@@ -243,4 +236,38 @@ class ColeccionActivity : AppCompatActivity() {
                         .maxByOrNull { it.length } ?: "SinNombre_$contador"
 
                     val numeroCompleto = if (numeroActual != null) "${edicion.sigla}-$numeroActual" else null
-                    if (numeroActual !=
+                    if (numeroActual != null) numeroActual++
+
+                    db.cardDao().insert(
+                        CardEntity(
+                            nombreDetectado = nombre,
+                            fotoUri = uriNueva.toString(),
+                            edicionSeleccionada = edicion.nombre,
+                            numeroColeccionista = numeroCompleto,
+                            enColeccion = true
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e("MYL", "Error procesando imagen $uri", e)
+                }
+
+                contador++
+                withContext(Dispatchers.Main) {
+                    dialogProgreso.setMessage("Procesando $contador/${imagenes.size}...")
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                dialogProgreso.dismiss()
+                Toast.makeText(
+                    this@ColeccionActivity, 
+                    "Importadas: $contador cartas\nMovidas a carpeta privada", 
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun abrirVisorImagen(uriFoto: String) {
+        val intent = Intent(this, VisorImagenActivity::class.java)
+        intent.putExtra
