@@ -10,5 +10,6 @@ data class CardEntity(
     val fotoUri: String,
     val fecha: Long = System.currentTimeMillis(),
     val codigoEdicion: String? = null,
-    val edicionSeleccionada: String? = null
+    val edicionSeleccionada: String? = null,
+    val numeroColeccionista: String? = null  // NUEVO
 )
