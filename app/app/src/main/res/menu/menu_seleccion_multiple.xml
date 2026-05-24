@@ -2,20 +2,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/action_eliminar"
-        android:icon="@android:drawable/ic_menu_delete"
         android:title="Eliminar"
-        android:showAsAction="ifRoom" />
+        android:icon="@android:drawable/ic_menu_delete" />
     <item
         android:id="@+id/action_mover_edicion"
-        android:icon="@android:drawable/ic_menu_edit"
-        android:title="Mover a edición"
-        android:showAsAction="ifRoom" />
+        android:title="Mover edición"
+        android:icon="@android:drawable/ic_menu_edit" />
     <item
         android:id="@+id/action_marcar_tengo"
-        android:title="Marcar Tengo"
-        android:showAsAction="never" />
+        android:title="Marcar como Tengo"
+        android:icon="@android:drawable/ic_menu_add" />
     <item
         android:id="@+id/action_marcar_falta"
-        android:title="Marcar Falta"
-        android:showAsAction="never" />
+        android:title="Marcar como Falta"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel" />
 </menu>
