@@ -4,55 +4,37 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var db: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        db = AppDatabase.getDatabase(this)
+        val btnEscanear = findViewById<Button>(R.id.btnEscanear)
+        val btnColeccion = findViewById<Button>(R.id.btnColeccion)
+        val txtStats = findViewById<TextView>(R.id.txtStats)
 
-        findViewById<Button>(R.id.btnEscanear).setOnClickListener {
+        btnEscanear.setOnClickListener {
             startActivity(Intent(this, ScannerActivity::class.java))
         }
 
-        findViewById<Button>(R.id.btnColeccion).setOnClickListener {
+        btnColeccion.setOnClickListener {
             startActivity(Intent(this, ColeccionActivity::class.java))
         }
 
-        findViewById<Button>(R.id.btnExportar).setOnClickListener {
-            Toast.makeText(this, "Exportar en Build #83", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        actualizarContadores()
-    }
-
-    private fun actualizarContadores() {
-        val txtCartas = findViewById<TextView>(R.id.txtCartasCargadas)
+        // FIX: Ahora usa Flow en vez de getCount()
+        val db = AppDatabase.getDatabase(this)
         lifecycleScope.launch {
-            val countBase = contarCartasBase()
-            val countColeccion = db.cardDao().getCount()
-            txtCartas.text = "Base: $countBase cartas | Colección: $countColeccion"
-        }
-    }
-
-    private fun contarCartasBase(): Int {
-        return try {
-            assets.open("cartas_myl.csv").bufferedReader().useLines { lines ->
-                lines.count() - 1
+            db.cardDao().getAll().collectLatest { lista ->
+                val tengo = lista.count { it.enColeccion }
+                val faltan = lista.count { !it.enColeccion }
+                txtStats.text = "Tengo: $tengo | Faltan: $faltan | Total: ${lista.size}"
             }
-        } catch (e: Exception) {
-            0
         }
     }
 }
