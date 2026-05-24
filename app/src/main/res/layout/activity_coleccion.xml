@@ -1,65 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212">
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/txtTotal"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="wrap_content"
+        android:text="Total: 0 | Tengo: 0 | Faltan: 0"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
 
-        <EditText
-            android:id="@+id/edtBuscar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Buscar por nombre, edición o número..."
-            android:textColorHint="#666666"
-            android:textColor="#FFFFFF"
-            android:background="#1E1E1E"
-            android:padding="16dp"
-            android:layout_margin="8dp" />
+    <EditText
+        android:id="@+id/edtBuscar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Buscar por nombre, edición o número..."
+        android:inputType="text"
+        android:layout_marginBottom="8dp"/>
 
-        <TextView
-            android:id="@+id/txtTotal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Total: 0 cartas"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:padding="16dp"
-            android:textStyle="bold" />
-           <Button
-    android:id="@+id/btnImportarCarpeta"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    android:text="IMPORTAR DESDE CARPETA"
-    android:textColor="@android:color/white"
-    android:backgroundTint="#FF6F00" />
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerColeccion"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+    <!-- TEXTO QUE MUESTRA LA RUTA -->
+    <TextView
+        android:id="@+id/txtRutaPendientes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Carpeta: Pictures/MyLScanner/Pendientes"
+        android:textSize="12sp"
+        android:textColor="#888"
+        android:paddingBottom="4dp" />
 
-        <Button
-            android:id="@+id/btnVolver"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="VOLVER AL MENÚ"
-            android:layout_margin="16dp" />
+    <!-- BOTÓN NUEVO -->
+    <Button
+        android:id="@+id/btnEscanearPendientes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="ESCANEAR CARPETA PENDIENTES"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#FF6F00" />
 
-    </LinearLayout>
+    <Button
+        android:id="@+id/btnVolver"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="VOLVER"
+        android:layout_marginBottom="8dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerColeccion"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAgregarEdicion"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
+        android:layout_gravity="end|bottom"
         android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="#6200EE" />
+        android:contentDescription="Agregar Edición"
+        app:backgroundTint="#FF6F00"
+        app:tint="@android:color/white"/>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</LinearLayout>
