@@ -8,18 +8,18 @@ interface CardDao {
     @Query("SELECT * FROM cards ORDER BY fechaRegistro DESC")
     fun getAll(): Flow<List<CardEntity>>
 
-    @Query("SELECT * FROM cards WHERE nombreDetectado LIKE '%' || :search || '%' OR edicionSeleccionada LIKE '%' || :search || '%' OR numeroColeccionista LIKE '%' || :search || '%' ORDER BY fechaRegistro DESC")
-    fun search(search: String): Flow<List<CardEntity>>
-
-    @Query("SELECT * FROM cards WHERE fotoUri = :uri LIMIT 1")
-    suspend fun getByUri(uri: String): CardEntity?
+    @Query("SELECT * FROM cards ORDER BY fechaRegistro DESC")
+    suspend fun getAllSync(): List<CardEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(card: CardEntity)
+    suspend fun insert(card: CardEntity): Long
 
     @Update
     suspend fun update(card: CardEntity)
 
     @Delete
     suspend fun delete(card: CardEntity)
+
+    @Query("SELECT * FROM cards WHERE id = :id")
+    suspend fun getById(id: Int): CardEntity?
 }
