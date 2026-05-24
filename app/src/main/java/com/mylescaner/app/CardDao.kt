@@ -1,21 +1,22 @@
 package com.mylescaner.app
 
 import androidx.room.*
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CardDao {
-    @Query("SELECT * FROM coleccion ORDER BY fecha DESC")
-    suspend fun getAll(): List<CardEntity>
+    @Query("SELECT * FROM cartas ORDER BY fechaRegistro DESC")
+    fun getAll(): Flow<List<CardEntity>>
 
-    @Insert
-    suspend fun insert(card: CardEntity)
+    @Query("SELECT * FROM cartas WHERE nombreDetectado LIKE '%' || :search || '%' OR edicionSeleccionada LIKE '%' || :search || '%' OR numeroColeccionista LIKE '%' || :search || '%' ORDER BY fechaRegistro DESC")
+    fun search(search: String): Flow<List<CardEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(carta: CardEntity)
 
     @Update
-    suspend fun update(card: CardEntity)
+    suspend fun update(carta: CardEntity)
 
     @Delete
-    suspend fun delete(card: CardEntity)
-
-    @Query("SELECT COUNT(*) FROM coleccion")
-    suspend fun getCount(): Int
+    suspend fun delete(carta: CardEntity)
 }
